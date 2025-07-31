@@ -1,0 +1,11 @@
+digraph Tree {
+node [margin = "0.01"];
+rankdir = "TB";
+box0x50e000000120 [shape = record, label = "{<node_par>parent = 0x50e0000002e0|<node_adr>address = 0x50e000000120|<node_t>type = VARIABLE|<node_v>value = x |{<node_l>left_node = (nil)|<node_r>right_node = (nil)|<node_ap>node_after_operator = (nil)|<node_fe>node_for_operator_else = (nil)}}"];
+box0x50e0000002e0 [shape = record, label = "{<node_par>parent = 0x50e000000040|<node_adr>address = 0x50e0000002e0|<node_t>type = OPERATOR|<node_v>value = = |{<node_l>left_node = 0x50e000000120|<node_r>right_node = 0x50e000000200|<node_ap>node_after_operator = (nil)|<node_fe>node_for_operator_else = (nil)}}"];
+box0x50e000000200 [shape = record, label = "{<node_par>parent = 0x50e0000002e0|<node_adr>address = 0x50e000000200|<node_t>type = NUMBER|<node_v>value = 5.000000 |{<node_l>left_node = (nil)|<node_r>right_node = (nil)|<node_ap>node_after_operator = (nil)|<node_fe>node_for_operator_else = (nil)}}"];
+box0x50e000000040 [shape = record, label = "{<node_par>parent = (nil)|<node_adr>address = 0x50e000000040|<node_t>type = OPERATOR|<node_v>value = ; |{<node_l>left_node = 0x50e0000002e0|<node_r>right_node = (nil)|<node_ap>node_after_operator = (nil)|<node_fe>node_for_operator_else = (nil)}}"];
+box0x50e000000040:<node_l>->box0x50e0000002e0 [color=red];
+box0x50e0000002e0:<node_l>->box0x50e000000120 [color=red];
+box0x50e0000002e0:<node_r>->box0x50e000000200 [color=green];
+}
