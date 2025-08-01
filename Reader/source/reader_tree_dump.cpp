@@ -19,6 +19,7 @@ static char * get_var(Variables var);
 static const char * get_function(Function_name function);
 static const char * get_operator(Programm_operators operator_);
 static const char * get_comp_operation(Comparison_operations operation);
+static const char * get_type_of_number(struct Value *value);
 
 static Errors_of_tree create_command_for_console(const char *file_in_name, const char *file_out_name)
 {
@@ -157,6 +158,21 @@ static const char * get_comp_operation(Comparison_operations operation)
     }
 }
 
+static const char * get_type_of_number(struct Value *value)
+{
+    if (value->type != NUMBER)
+    {
+        return "NONE";
+    }
+    switch(value->type_of_number)
+    {
+        case INT:          return "INT";
+        case DOUBLE:       return "DOUBLE";
+        case NOT_A_NUMBER: return "NONE";
+        default:           return "NONE";
+    }
+}
+
 static void get_value(struct Value *value, char *str)
 {
     if (value->type == NUMBER)
@@ -218,11 +234,11 @@ static void create_nodes_in_dump(struct Node *root, FILE *file_pointer)
     get_value(&(root->value), str);
     fprintf(file_pointer, "box%p "
                         "[shape = record,"
-                        " label = \"{<node_par>parent = %p|<node_adr>address = %p|<node_t>type = %s|<node_v>value = %s |"
+                        " label = \"{<node_par>parent = %p|<node_adr>address = %p|<node_t>type = %s|<node_v>value = %s|<node_ton>type_of_number = %s|"
                         "{<node_l>left_node = %p|<node_r>right_node = %p|<node_ap>node_after_operator = %p|<node_fe>node_for_operator_else = %p}}\"];\n",
                         root, root->parent_node, root,
                         get_type_name((root->value).type),
-                        str,
+                        str, get_type_of_number(&(root->value)),
                         root->left, root->right, root->node_after_operator, root->node_for_operator_else);
 
 

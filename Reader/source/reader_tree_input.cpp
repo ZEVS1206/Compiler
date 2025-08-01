@@ -1355,9 +1355,34 @@ static void parse_number_to_lexical_analyze_array(struct Node **lexical_analyze_
         abort();
     }
     char *end = NULL;
+    bool is_double = false;
+    bool is_fractional_part = false;
+    for (size_t index = 0; str[index] != '\0'; index++)
+    {
+        if (str[index] == '.')
+        {
+            is_fractional_part = true;
+        }
+        if (is_fractional_part)
+        {
+            if (isdigit(str[index]))
+            {
+                is_double = true;
+                break;
+            }
+        }
+    }
     double value = strtod(str, &end);
     ((*lexical_analyze_array[0]).value).type = NUMBER;
     ((*lexical_analyze_array[0]).value).number = value;
+    if (is_double)
+    {
+        ((*lexical_analyze_array[0]).value).type_of_number = DOUBLE;
+    }
+    else
+    {
+        ((*lexical_analyze_array[0]).value).type_of_number = INT;
+    }
     (*lexical_analyze_array)++;
     (*len_of_lexical_analyze_array)++;
     return;

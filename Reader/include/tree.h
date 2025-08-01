@@ -104,12 +104,20 @@ enum Comparison_operations
     OP_NOT_EQUAL     = 6
 };
 
+enum Type_of_number
+{
+    NOT_A_NUMBER = 0,
+    INT          = 1,
+    DOUBLE       = 2
+};
+
 struct Value
 {
     Value_type type;
     union
     {
         double number;
+        Type_of_number type_of_number;
         Operations operation;
         Variables variable;
         char variable_name[100];
