@@ -33,7 +33,7 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
     {
         return ERROR_OF_OPERATING_TREE;
     }
-    FILE *file_pointer = fopen("source/asm_programm.asm", "w");
+    FILE *file_pointer = fopen("source/nasm/asm_programm.asm", "w");
     if (file_pointer == NULL)
     {
         return ERROR_OF_CREATE_ASM_FILE;
@@ -63,6 +63,15 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
             return ERROR_OF_OPERATING_TREE;
         }
     }
+    elements.all_registers = (struct Register *) calloc (SIZE_OF_ALL_REGISTERS, sizeof(struct Register));
+    if (elements.all_registers == NULL)
+    {
+        return ERROR_OF_OPERATING_TREE;
+    }
+    for (size_t index = 0; index < SIZE_OF_ALL_REGISTERS; index++)
+    {
+        ((elements.all_registers)[index]).is_free = true;
+    }
     // struct MyStack stack_if = {0};
     // struct MyStack stack_while = {0};
     Errors error = NO_ERRORS;
@@ -90,6 +99,12 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         fprintf(stderr, "error of stack = %d\n", error);
         abort();
     }
+    error = STACK_CTOR(&(elements.stack_for_operations), 10);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
     elements.counter_of_if = 0;
     elements.counter_of_while = 0;
     elements.counter_of_else = 0;
@@ -104,6 +119,7 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         char start_str[50] = "_start:";
         fprintf(file_pointer, "%s\n", start_str);
         fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
+        fprintf(file_pointer, "\tadd rsp, -16\n");
         // size_t index = 0;
         // while (index < SIZE_OF_ALL_VARIABLES && strlen(((elements.all_labels)[index]).name) != 0)
         // {
@@ -119,17 +135,16 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         //     index++;
         // }
     }
-    //bypass_of_tree(tree->root, file_pointer, &elements);// &all_variables, all_labels, &counter_of_if, &counter_of_while, &stack_if, &stack_while);
-    // fprintf(file_pointer, "pop [0]\n");
-    // fprintf(file_pointer, "out\n");
+    bypass_of_tree(tree->root, file_pointer, &elements);// &all_variables, all_labels, &counter_of_if, &counter_of_while, &stack_if, &stack_while);
     *all_labels = elements.all_labels;
-    fprintf(file_pointer, "\tpop rbp\n\tmov eax, 1\n\txor ebx, ebx\n\tint 0x80\n");
+    fprintf(file_pointer, "\tpop rbp\n\tmov rax, 60\n\txor rdi, rdi\n\tsyscall\n");
     free(elements.all_variables);
     for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
     {
         free(((elements.all_functions)[index]).all_local_variables);
     }
     free(elements.all_functions);
+    free(elements.all_registers);
     fclose(file_pointer);
     error = stack_destructor(&(elements.stack_if));
     if (error != NO_ERRORS)
@@ -150,6 +165,12 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         abort();
     }
     error = stack_destructor(&(elements.current_function));
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
+    error = stack_destructor(&(elements.stack_for_operations));
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);
@@ -794,10 +815,12 @@ static void process_operator_assignment(struct Node *root, FILE *file_pointer, s
     int ram_address = -1;
     bool is_exits = false;
     int empty_index = 0;
+    int last_address = 0;
     if (!elements->is_body_of_functions)
     {
         for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
         {
+            
             if (strcasecmp(((root->left)->value).variable_name, ((elements->all_variables)[index]).name) == 0)
             {
                 ram_address = ((elements->all_variables)[index]).address;
@@ -809,6 +832,7 @@ static void process_operator_assignment(struct Node *root, FILE *file_pointer, s
                 empty_index = index;
                 break;
             }
+            last_address = ((elements->all_variables)[index]).address;
         }
     }
     else
@@ -839,12 +863,13 @@ static void process_operator_assignment(struct Node *root, FILE *file_pointer, s
     process_expression_after_assignment(root->right, file_pointer, elements, &counter_of_parametres, OPERATOR);
     if (!is_exits)
     {
-        ((elements->all_variables)[empty_index]).address = empty_index;
+        ((elements->all_variables)[empty_index]).address = last_address - 4;
         strncpy(((elements->all_variables)[empty_index]).name, ((root->left)->value).variable_name, strlen(((root->left)->value).variable_name));
-        ram_address = empty_index;
+        ram_address = last_address - 4;
     }
-    fprintf(file_pointer, "push [");
-    fprintf(file_pointer, "%d]\n", ram_address);
+    fprintf(file_pointer, "\tpop rax\n");
+    fprintf(file_pointer, "\tmov DWORD [rbp %d], eax\n", ram_address);
+    (elements->all_registers)[0].is_free = true;
     return;
 }
 
@@ -866,7 +891,14 @@ static void process_expression_after_assignment(struct Node *root, FILE *file_po
     {
         case NUMBER:
         {
-            fprintf(file_pointer, "push %f\n", (root->value).number);
+            if ((root->value).type_of_number == DOUBLE)
+            {
+                fprintf(file_pointer, "\tpush %f\n", (root->value).number);
+            }
+            else if ((root->value).type_of_number == INT)
+            {
+                fprintf(file_pointer, "\tpush %d\n", (int)(root->value).number);
+            }
             (*counter_of_parametres)++;
             return;
         }
@@ -987,8 +1019,22 @@ static void process_global_variable(struct Value *value, FILE *file_pointer, str
         fprintf(stderr, "ERROR OF USING UNKNOWN VARIABLE\n");
         abort();
     }
-    fprintf(file_pointer, "pop [%d]\n", address);
-
+    char str[10] = "";
+    char str_for_stack[10] = "";
+    if ((elements->all_registers)[0].is_free)
+    {
+        snprintf(str, 10, "eax");
+        snprintf(str_for_stack, 10, "rax");
+        (elements->all_registers)[0].is_free = false;
+    }
+    else
+    {
+        snprintf(str, 10, "edx");
+        snprintf(str_for_stack, 10, "rdx");
+        (elements->all_registers)[3].is_free = false;
+    }
+    fprintf(file_pointer, "\tmov %s, DWORD [rbp %d]\n", str, address);
+    fprintf(file_pointer, "\tpush %s\n", str_for_stack);
     return;
 }
 
@@ -999,35 +1045,37 @@ static void process_operation(struct Value *value, FILE *file_pointer)
         fprintf(stderr, "ERROR OF PROCESSING OPERATION\n");
         abort();
     }
+    fprintf(file_pointer, "\tpop rdx\n\tpop rax\n");
     switch(value->operation)
     {
         case OP_ADD:
         {
-            fprintf(file_pointer, "add\n");
-            return;
+            fprintf(file_pointer, "\tadd eax, edx\n");
+            break;
         }
         case OP_SUB:
         {
-            fprintf(file_pointer, "sub\n");
-            return;
+            fprintf(file_pointer, "\tsub eax, edx\n");
+            break;
         }
         case OP_MUL:
         {
-            fprintf(file_pointer, "mul\n");
-            return;
+            fprintf(file_pointer, "\tmul eax, edx\n");
+            break;
         }
         case OP_DIV:
         {
-            fprintf(file_pointer, "div\n");
-            return;
+            fprintf(file_pointer, "\tdiv eax, edx\n");
+            break;
         }
         case OP_DEG:
         {
             fprintf(file_pointer, "deg\n");
-            return;
+            break;
         }
         default: return;
     }
+    fprintf(file_pointer, "\tpush rax\n");
     return;
 }
 

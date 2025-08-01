@@ -19,11 +19,16 @@ OBJECTS_READER=$(patsubst $(SOURCE_DIR_READER)/%.cpp,$(BUILD_DIR)/reader_%.o,$(S
 OBJECTS=$(OBJECTS_ASM) $(OBJECTS_READER)
 EXEC_NAME := assembler.exe
 
+# NASM variables
+NASM_SOURCE_DIR = source/nasm
+NASM_OBJECTS = $(BUILD_DIR)/nasm_asm.o
+NASM_EXEC_NAME = nasm_program.exe
+
 dir ?= $(BUILD_DIR)/$(EXEC_NAME)
 
 
 # wildcart patsubst
-.PHONY: clean all run
+.PHONY: clean all run nasm-compile nasm-run
 
 all: $(dir)
 
@@ -39,10 +44,20 @@ $(BUILD_DIR)/reader_%.o: $(SOURCE_DIR_READER)/%.cpp | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(DUMP_DIR)
+	mkdir -p $(NASM_SOURCE_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf $(DUMP_DIR)
+	rm -rf $(NASM_SOURCE_DIR)
 
 run:
 	$(dir)
+
+# NASM compilation and run rules
+nasm:
+	nasm -f elf64 $(NASM_SOURCE_DIR)/*.asm -o $(NASM_OBJECTS)
+	ld $(NASM_OBJECTS) -o $(BUILD_DIR)/$(NASM_EXEC_NAME)
+
+nasm_run:
+	$(BUILD_DIR)/$(NASM_EXEC_NAME)

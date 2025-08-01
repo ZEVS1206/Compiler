@@ -2,11 +2,33 @@
 #define ASSEMBLER_STRUCTURES_H
 
 #define SIZE_OF_ALL_VARIABLES 50
+#define SIZE_OF_ALL_REGISTERS 16
 const int TOXIC = 1985;
 const long long int RAM_SIZE  = 500;
 
 #include "../../Reader/include/tree.h"
 #include "stack.h"
+
+enum Registers
+{
+    NOT_A_REGISTER = 0,
+    RAX            = 1,
+    RBX            = 2,
+    RCX            = 3,
+    RDX            = 4,
+    RSI            = 5,
+    RDI            = 6,
+    RBP            = 7,
+    RSP            = 8,
+    R8             = 9,
+    R9             = 10,
+    R10            = 11,
+    R11            = 12,
+    R12            = 13,
+    R13            = 14,
+    R14            = 15,
+    R15            = 16
+};
 
 enum Errors_of_ASM
 {
@@ -22,6 +44,12 @@ enum Errors_of_ASM
     ERROR_OF_PARSE_WORD        = 9,
     ERROR_OF_CREATE_ASM_FILE   = 10,
     ERROR_OF_OPERATING_TREE      = 11
+};
+
+struct Register
+{
+    Registers name;
+    bool is_free;
 };
 
 struct Label
@@ -54,9 +82,11 @@ struct Special_elements_for_processing
     struct MyStack stack_if;
     struct MyStack stack_while;
     struct MyStack stack_else;
+    struct MyStack stack_for_operations;
     struct Label *all_variables;
     struct Labels *all_labels;
     struct Function_type *all_functions;
+    struct Register *all_registers;
     bool is_body_of_functions;
     bool is_assignment;
 };
