@@ -117,7 +117,6 @@ struct Value
     union
     {
         double number;
-        Type_of_number type_of_number;
         Operations operation;
         Variables variable;
         char variable_name[100];
@@ -126,6 +125,8 @@ struct Value
         char function_name[100];
         Function_name function;
     };
+    Type_of_number type_of_number;
+    size_t count_of_parametres;
 };
 
 

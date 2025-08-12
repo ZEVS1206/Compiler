@@ -25,6 +25,7 @@ static void process_operator_while(struct Node *root, FILE *file_pointer, struct
 static void process_definition_of_function(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements);
 static void process_operator_return(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements);
 static void get_local_memory(struct Value *value, struct Special_elements_for_processing *elements);
+static void create_det_operation(FILE *file_pointer);
 
 
 Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels **all_labels)
@@ -414,7 +415,7 @@ static void process_operator_else(struct Node *root, FILE *file_pointer, struct 
         fprintf(stderr, "error of stack = %d\n", error);
         abort();
     }
-    fprintf(file_pointer, "jmp end_if%lu:\n", (size_t)element);
+    fprintf(file_pointer, "\tjmp end_if%lu\n", (size_t)element);
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);
@@ -1060,22 +1061,38 @@ static void process_operation(struct Value *value, FILE *file_pointer)
         }
         case OP_MUL:
         {
-            fprintf(file_pointer, "\tmul eax, edx\n");
+            fprintf(file_pointer, "\timul eax, edx\n");
             break;
         }
         case OP_DIV:
         {
-            fprintf(file_pointer, "\tdiv eax, edx\n");
+            fprintf(file_pointer, "\tpush rbx\n\tmov rbx, rdx\n\tmov rdx, 0\n");
+            fprintf(file_pointer, "\tidiv ebx\n");
+            fprintf(file_pointer, "\tpop rbx\n");
             break;
         }
         case OP_DEG:
         {
-            fprintf(file_pointer, "deg\n");
+            create_det_operation(file_pointer);
             break;
         }
         default: return;
     }
     fprintf(file_pointer, "\tpush rax\n");
+    return;
+}
+
+static void create_det_operation(FILE *file_pointer)
+{
+    if (file_pointer == NULL)
+    {
+        fprintf(stderr, "Error! There is no output file\n");
+        abort();
+    }
+    fprintf(file_pointer, "\tpush rcx\n\tmov rcx, 0\n\tpush rbx\n\tmov ebx, eax\n");
+    fprintf(file_pointer, "cycle_deg:\n");
+    fprintf(file_pointer, "\timul eax, ebx\n\tinc ecx\n\tcmp ecx, edx\n\tjne cycle_deg\n");
+    fprintf(file_pointer, "\tpop rbx\n\tpop rcx\n");
     return;
 }
 
@@ -1090,32 +1107,32 @@ static void process_comparison_operation(struct Value *value, FILE *file_pointer
     {
         case OP_MORE:
         {
-            fprintf(file_pointer, "ja ");
+            fprintf(file_pointer, "\tja ");
             return;
         }
         case OP_MORE_OR_EQUAL:
         {
-            fprintf(file_pointer, "jae ");
+            fprintf(file_pointer, "\tjae ");
             return;
         }
         case OP_LESS:
         {
-            fprintf(file_pointer, "jb ");
+            fprintf(file_pointer, "\tjb ");
             return;
         }
         case OP_LESS_OR_EQUAL:
         {
-            fprintf(file_pointer, "jbe ");
+            fprintf(file_pointer, "\tjbe ");
             return;
         }
         case OP_EQUAL:
         {
-            fprintf(file_pointer, "je ");
+            fprintf(file_pointer, "\tje ");
             return;
         }
         case OP_NOT_EQUAL:
         {
-            fprintf(file_pointer, "jne ");
+            fprintf(file_pointer, "\tjne ");
             return;
         }
         default: return;
@@ -1133,11 +1150,14 @@ static void process_comparison_expression(struct Node *root, FILE *file_pointer,
         fprintf(stderr, "ERROR OF CREATING ASM FILE\n");
         abort();
     }
-    process_expression_after_comparison(root->left, file_pointer, elements, OPERATION); //all_variables, all_labels);
-    fprintf(file_pointer, "pop dx\n");
-    process_expression_after_comparison(root->right, file_pointer, elements, OPERATION); //all_variables, all_labels);
+    //process_expression_after_comparison(root->left, file_pointer, elements, OPERATION); //all_variables, all_labels);
+    size_t counter_of = 0;
+    process_expression_after_assignment(root->left, file_pointer, elements, &counter_of, OPERATION);
+    fprintf(file_pointer, "\tpop rax\n");
+    //process_expression_after_comparison(root->right, file_pointer, elements, OPERATION); //all_variables, all_labels);
+    process_expression_after_assignment(root->right, file_pointer, elements, &counter_of, OPERATION);
+    fprintf(file_pointer, "\tpop rdx\n\tcmp eax, edx\n");
     process_comparison_operation(&(root->value), file_pointer);
-    fprintf(file_pointer, "dx ");
     char str_begin[50] = "";
     char str_end[50] = "";
     size_t counter = 0;
@@ -1153,7 +1173,7 @@ static void process_comparison_expression(struct Node *root, FILE *file_pointer,
         strncpy(str_end, "end_while", 9);
         counter = elements->counter_of_while;
     }
-    fprintf(file_pointer, "%s%lu:\n", str_begin, counter);
+    fprintf(file_pointer, "%s%lu\n", str_begin, counter);
     size_t index = 0;
     const size_t current_len = strlen(str_begin);
     snprintf(str_begin + current_len, sizeof(str_begin) - current_len, "%lu:", counter);
@@ -1174,11 +1194,11 @@ static void process_comparison_expression(struct Node *root, FILE *file_pointer,
     }
     if (((root->parent_node)->node_for_operator_else) == NULL)
     {
-        fprintf(file_pointer, "jmp %s%lu:\n", str_end, counter);
+        fprintf(file_pointer, "\tjmp %s%lu\n", str_end, counter);
     }
     else
     {
-        fprintf(file_pointer, "jmp begin_else%lu:\n", counter);
+        fprintf(file_pointer, "\tjmp begin_else%lu\n", counter);
         // if (elements->counter_of_else == 0)
         // {
         //     fprintf(file_pointer, "jmp begin_else1:\n");
@@ -1219,7 +1239,7 @@ static void process_expression_after_comparison(struct Node *root, FILE *file_po
     {
         case NUMBER:
         {
-            fprintf(file_pointer, "push %f\n", (root->value).number);
+            fprintf(file_pointer, "\tpush %f\n", (root->value).number);
             return;
         }
         case VARIABLE:
