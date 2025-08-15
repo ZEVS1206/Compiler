@@ -25,7 +25,34 @@ static void process_operator_while(struct Node *root, FILE *file_pointer, struct
 static void process_definition_of_function(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements);
 static void process_operator_return(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements);
 static void get_local_memory(struct Value *value, struct Special_elements_for_processing *elements);
-static void create_det_operation(FILE *file_pointer);
+static void create_deg_operation(FILE *file_pointer);
+static void create_function_print(FILE *file_pointer);
+static void create_function_strlen(FILE *file_pointer);
+static void transform_number(FILE *file_pointer, struct Value *value);
+
+static void transform_number(FILE *file_pointer, struct Value *value)
+{
+    if (value == NULL || file_pointer == NULL)
+    {
+        fprintf(stderr, "Error!\n");
+        abort();
+    }
+    if (value->type != NUMBER)
+    {
+        return;
+    }
+    char buffer[50] = {};
+    if (value->type_of_number == INT)
+    {
+        snprintf(buffer, 50, "%d", (int)(value->number));
+    }
+    else
+    {
+        snprintf(buffer, 50, "%lf", value->number);
+    }
+    fprintf(file_pointer, "\tmov rbx, \'%s\'\n\tpush rbx\n", buffer);
+    return;
+}
 
 
 Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels **all_labels)
@@ -39,7 +66,12 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
     {
         return ERROR_OF_CREATE_ASM_FILE;
     }
+    fprintf(file_pointer, "%%include \"include/asm_built_in_functions.inc\"\n\n");
+    fprintf(file_pointer, "section .data\n\tbuffer_for_text db 10000 dup(0)\n\tlen_of_buffer equ $ - buffer_for_text\n\tbuffer_index dq 0\n");
     fprintf(file_pointer, "section .text\n\tglobal _start\n");
+    //create_function_strlen(file_pointer);
+    //create_function_print(file_pointer);
+
     struct Special_elements_for_processing elements = {0};
     elements.all_labels = *all_labels;
     elements.all_variables = (struct Label *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Label));
@@ -178,6 +210,38 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         abort();
     }
     return NO_ASM_ERRORS;
+}
+
+static void create_function_strlen(FILE *file_pointer)
+{
+    if (file_pointer == NULL)
+    {
+        fprintf(stderr, "Error! Output file is not existed\n");
+        abort();
+    }
+    fprintf(file_pointer, "strlen:\n");
+    fprintf(file_pointer, "\tmov rcx, -1\n\txor al, al\n\tcld\n\trepne scasb\n\tnot rcx\n\tdec rcx\n\tmov rax, rcx\n\tret\n");
+    return;
+}
+
+static void create_function_print(FILE *file_pointer)
+{
+    if (file_pointer == NULL)
+    {
+        fprintf(stderr, "Error! Output file is not existed\n");
+        abort();
+    }
+    fprintf(file_pointer, "\n\nprint:\n");
+    fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
+    fprintf(file_pointer, "\tcmp rdi, 0\n\tje print_enter\n");
+    fprintf(file_pointer, "\tmov r10, rdi\n\txor r11, r11\n");
+    fprintf(file_pointer, "\tlea rbx, [rbp + 8 * (rdi + 1)]\n");
+    fprintf(file_pointer, "cycle_processing:\n");
+    fprintf(file_pointer, "\tcmp r10, 0\n\tje print_enter\n");
+    fprintf(file_pointer, "\tmov rdi, rbx\n\tcall strlen\n\tmov r12, rax\n\tprint_str rbx, r12\n\tpush 10\n\tprint_str rsp, 1\n\tadd rsp, 1\n\tsub rbx, 8\n\tdec r10\n\tjmp cycle_processing\n");
+    fprintf(file_pointer, "print_enter:\n\tpush 10\n\tprint_str rsp, 1\n\tadd rsp, 1\n");
+    fprintf(file_pointer, "\tmov rsp, rbp\n\tpop rbp\n");
+    fprintf(file_pointer, "\tret\n");
 }
 
 //static void bypass_of_tree(struct Node *root, FILE *file_pointer, struct Label **all_variables, struct Labels **all_labels, size_t *counter_of_if, size_t *counter_of_while, struct MyStack *stack_if, struct MyStack *stack_while)
@@ -544,31 +608,34 @@ static void process_built_in_function(struct Node *root, FILE *file_pointer, str
         fprintf(file_pointer, "in\n");
     }
     size_t counter_of_parametres = 0;
-    process_expression_after_assignment(root->left, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
+    //process_expression_after_assignment(root->left, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
+    add_parametres_for_function(root->left, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
     add_parametres_for_function(root->right, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
     (elements->all_functions)[id].end_local_memory_address = counter_of_parametres + (elements->all_functions)[id].start_local_memory_address;
     //printf("start_address = %lu\nend_address = %lu\n", (elements->all_functions)[id].start_local_memory_address, (elements->all_functions)[id].end_local_memory_address);
     elements->start_local_memory_address = (elements->all_functions)[id].end_local_memory_address + 1;
-    size_t index = 0;
-    for (index = (elements->all_functions)[id].start_local_memory_address; index < (elements->all_functions)[id].end_local_memory_address && index < RAM_SIZE; index++)
-    {
-        fprintf(file_pointer, "push [%lu]\n", index);
-    }
-    index--;
-    if (strcasecmp((root->value).function_name, "print") == 0)
-    {
-        if (counter_of_parametres == 0)
-        {
-            fprintf(file_pointer, "push %d\n", 10);
-            fprintf(file_pointer, "push %d\n", TOXIC + 1);
-            fprintf(file_pointer, "out\n");
-        }
-        for (; index >= (elements->all_functions)[id].start_local_memory_address; index--)
-        {
-            fprintf(file_pointer, "pop [%lu]\n", index);
-            fprintf(file_pointer, "out\n");
-        }
-    }
+    fprintf(file_pointer, "\tmov rdi, %lu\n", counter_of_parametres);
+    fprintf(file_pointer, "\tcall print\n");
+    // size_t index = 0;
+    // for (index = (elements->all_functions)[id].start_local_memory_address; index < (elements->all_functions)[id].end_local_memory_address && index < RAM_SIZE; index++)
+    // {
+    //     fprintf(file_pointer, "push [%lu]\n", index);
+    // }
+    // index--;
+    // if (strcasecmp((root->value).function_name, "print") == 0)
+    // {
+    //     if (counter_of_parametres == 0)
+    //     {
+    //         fprintf(file_pointer, "push %d\n", 10);
+    //         fprintf(file_pointer, "push %d\n", TOXIC + 1);
+    //         fprintf(file_pointer, "out\n");
+    //     }
+    //     for (; index >= (elements->all_functions)[id].start_local_memory_address; index--)
+    //     {
+    //         fprintf(file_pointer, "pop [%lu]\n", index);
+    //         fprintf(file_pointer, "out\n");
+    //     }
+    // }
     return;
 }
 static void process_definition_of_function(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements)
@@ -759,7 +826,8 @@ static void add_parametres_for_function(struct Node *root, FILE *file_pointer, s
     {
         case NUMBER:
         {
-            fprintf(file_pointer, "push %f\n", (root->value).number);
+            fprintf(file_pointer, "\tpush %d\n", (int)((root->value).number));
+            //transform_number(file_pointer, &(root->value));
             (*counter_of_parametres)++;
             return;
         }
@@ -991,8 +1059,6 @@ static void process_local_variable(struct Value *value, FILE *file_pointer, stru
     int address_of_variable = (((elements->all_functions)[index]).all_local_variables)[id].address;
     fprintf(file_pointer, "pop [%d]\n", address_of_variable);
     return;
-
-
 }
 
 static void process_global_variable(struct Value *value, FILE *file_pointer, struct Special_elements_for_processing *elements)
@@ -1073,7 +1139,7 @@ static void process_operation(struct Value *value, FILE *file_pointer)
         }
         case OP_DEG:
         {
-            create_det_operation(file_pointer);
+            create_deg_operation(file_pointer);
             break;
         }
         default: return;
@@ -1082,14 +1148,14 @@ static void process_operation(struct Value *value, FILE *file_pointer)
     return;
 }
 
-static void create_det_operation(FILE *file_pointer)
+static void create_deg_operation(FILE *file_pointer)
 {
     if (file_pointer == NULL)
     {
         fprintf(stderr, "Error! There is no output file\n");
         abort();
     }
-    fprintf(file_pointer, "\tpush rcx\n\tmov rcx, 0\n\tpush rbx\n\tmov ebx, eax\n");
+    fprintf(file_pointer, "\tpush rcx\n\tmov rcx, 1\n\tpush rbx\n\tmov ebx, eax\n");
     fprintf(file_pointer, "cycle_deg:\n");
     fprintf(file_pointer, "\timul eax, ebx\n\tinc ecx\n\tcmp ecx, edx\n\tjne cycle_deg\n");
     fprintf(file_pointer, "\tpop rbx\n\tpop rcx\n");
