@@ -67,8 +67,7 @@ struct Function_type
 {
     char function_name[100];
     struct Label *all_local_variables;
-    size_t start_local_memory_address;
-    size_t end_local_memory_address;
+    int last_free_address;
     bool is_parametres_processed;
 };
 

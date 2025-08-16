@@ -2,7 +2,13 @@
 %define ASM_BUILT_IN_FUNCTIONS_IO
 
 
-
+%macro input_str 2
+    mov rax, 0
+    mov rdi, 0
+    mov rsi, %1
+    mov rdx, %2
+    syscall
+%endmacro
 
 %macro print_str 2
     mov rax, 1
@@ -11,6 +17,31 @@
     mov rdx, %2
     syscall
 %endmacro
+
+input:
+    push rbp
+    mov rbp, rsp
+    input_str buffer_for_input, buffer_size
+	lea rdi, buffer_for_input
+	call convert_to_number
+    pop rbp
+    ret
+
+
+convert_to_number:
+	xor rax, rax
+	mov ebx, 10
+processing_cycle:
+	mov dl, [rdi]
+	cmp dl, 10
+	je end_cycle
+	sub dl, '0'
+	imul eax, ebx
+	add al, dl
+	inc rdi
+	jmp processing_cycle
+end_cycle:
+	ret
 
 print_enter:
 	mov dl, 10
@@ -78,7 +109,7 @@ print:
 	push rbp
 	mov rbp, rsp
 	cmp rdi, 0
-	je end_of_cycle
+	je null_param
 	mov r13, rdi
 	lea rbx, [rbp + 8 * (rdi + 1)]
 cycle_processing:
@@ -91,7 +122,10 @@ cycle_processing:
 	dec r13
 	jmp cycle_processing
 end_of_cycle:
-	call print_enter
+    jmp end_
+null_param:
+    call print_enter
+end_:
 	mov rsp, rbp
 	pop rbp
 	ret

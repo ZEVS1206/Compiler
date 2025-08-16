@@ -1,3 +1,15 @@
-x = 5;
-print((3 ^ 2));
+def fact(x)
+{
+    i = 1;
+    pr = 1;
+    while (i <= x)
+    {
+        pr = (pr * i);
+        i = (i + 1);
+    }
+    return pr;
+}
+x = input();
+res = fact(x);
+print(res);
 $

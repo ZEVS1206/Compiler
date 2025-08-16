@@ -67,7 +67,8 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         return ERROR_OF_CREATE_ASM_FILE;
     }
     fprintf(file_pointer, "%%include \"include/asm_built_in_functions.inc\"\n\n");
-    fprintf(file_pointer, "section .data\n\tbuffer_for_text db 10000 dup(0)\n\tlen_of_buffer equ $ - buffer_for_text\n\tbuffer_index dq 0\n");
+    fprintf(file_pointer, "section .data\n\tbuffer_for_text db 256 dup(0)\n\tlen_of_buffer equ $ - buffer_for_text\n"
+                          "\tbuffer_index dq 0\n\tbuffer_for_input db 256 dup(0)\n\tbuffer_size equ $ - buffer_for_input\n");
     fprintf(file_pointer, "section .text\n\tglobal _start\n");
     //create_function_strlen(file_pointer);
     //create_function_print(file_pointer);
@@ -144,29 +145,12 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
     elements.start_local_memory_address = 250;
     elements.is_body_of_functions = false;
     elements.is_assignment = false;
-    // size_t counter_of_if = 0;
-    // size_t counter_of_while = 0; 
-    // fprintf(file_pointer, "jmp start:\n");
     if (!tree->are_any_functions)
     {
         char start_str[50] = "_start:";
         fprintf(file_pointer, "%s\n", start_str);
         fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
         fprintf(file_pointer, "\tadd rsp, -16\n");
-        // size_t index = 0;
-        // while (index < SIZE_OF_ALL_VARIABLES && strlen(((elements.all_labels)[index]).name) != 0)
-        // {
-        //     if (strcasecmp(start_str, ((elements.all_labels)[index]).name) == 0)
-        //     {
-        //         index = SIZE_OF_ALL_VARIABLES;
-        //     }
-        //     index++;
-        // }
-        // if (index < SIZE_OF_ALL_VARIABLES)
-        // {
-        //     strncpy(((elements.all_labels)[index]).name, start_str, strlen(start_str));
-        //     index++;
-        // }
     }
     bypass_of_tree(tree->root, file_pointer, &elements);// &all_variables, all_labels, &counter_of_if, &counter_of_while, &stack_if, &stack_while);
     *all_labels = elements.all_labels;
@@ -548,11 +532,8 @@ static void get_local_memory(struct Value *value, struct Special_elements_for_pr
         {
             strncpy((elements->all_functions)[id].function_name, value->function_name, strlen(value->function_name));
             //printf("start_local_memory_address = %lu\n", elements->start_local_memory_address);
-            if (elements->start_local_memory_address < RAM_SIZE)
-            {
-                is_overflow = false;
-            }
-            (elements->all_functions)[id].start_local_memory_address = elements->start_local_memory_address;
+            is_overflow = false;
+            (elements->all_functions)[id].last_free_address = -4;
             flag = true;
             break;
         }
@@ -593,49 +574,23 @@ static void process_built_in_function(struct Node *root, FILE *file_pointer, str
     {
         return;
     }
-    get_local_memory(&(root->value), elements);
-    Stack_Elem_t element = 0;
-    Errors error = stack_pop(&(elements->current_function), &element);
-    size_t id = (size_t)element;
+    //get_local_memory(&(root->value), elements);
     elements->is_assignment = false;
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
     if (strcasecmp((root->value).function_name, "input") == 0)
     {
-        fprintf(file_pointer, "in\n");
+        fprintf(file_pointer, "\tcall input\n");
+        fprintf(file_pointer, "\tpush rax\n");
+        return;
     }
     size_t counter_of_parametres = 0;
     //process_expression_after_assignment(root->left, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
     add_parametres_for_function(root->left, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
     add_parametres_for_function(root->right, file_pointer, elements, &counter_of_parametres, BUILT_IN_FUNCTION); //all_variables, &counter_of_parametres);
-    (elements->all_functions)[id].end_local_memory_address = counter_of_parametres + (elements->all_functions)[id].start_local_memory_address;
-    //printf("start_address = %lu\nend_address = %lu\n", (elements->all_functions)[id].start_local_memory_address, (elements->all_functions)[id].end_local_memory_address);
-    elements->start_local_memory_address = (elements->all_functions)[id].end_local_memory_address + 1;
-    fprintf(file_pointer, "\tmov rdi, %lu\n", counter_of_parametres);
-    fprintf(file_pointer, "\tcall print\n");
-    // size_t index = 0;
-    // for (index = (elements->all_functions)[id].start_local_memory_address; index < (elements->all_functions)[id].end_local_memory_address && index < RAM_SIZE; index++)
-    // {
-    //     fprintf(file_pointer, "push [%lu]\n", index);
-    // }
-    // index--;
-    // if (strcasecmp((root->value).function_name, "print") == 0)
-    // {
-    //     if (counter_of_parametres == 0)
-    //     {
-    //         fprintf(file_pointer, "push %d\n", 10);
-    //         fprintf(file_pointer, "push %d\n", TOXIC + 1);
-    //         fprintf(file_pointer, "out\n");
-    //     }
-    //     for (; index >= (elements->all_functions)[id].start_local_memory_address; index--)
-    //     {
-    //         fprintf(file_pointer, "pop [%lu]\n", index);
-    //         fprintf(file_pointer, "out\n");
-    //     }
-    // }
+    if (strcasecmp((root->value).function_name, "print") == 0)
+    {
+        fprintf(file_pointer, "\tmov rdi, %lu\n", counter_of_parametres);
+        fprintf(file_pointer, "\tcall print\n");
+    }
     return;
 }
 static void process_definition_of_function(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements)
@@ -657,23 +612,8 @@ static void process_definition_of_function(struct Node *root, FILE *file_pointer
     elements->is_assignment = false;
     struct Node *function = root->left;
     get_local_memory(&(function->value), elements);
-    size_t current_len = strlen((function->value).function_name);
-    snprintf((function->value).function_name + current_len, sizeof((function->value).function_name) - current_len, ":");
-    fprintf(file_pointer, "%s\n", (function->value).function_name);
-    size_t index = 0;
-    while (index < SIZE_OF_ALL_VARIABLES && strlen(((elements->all_labels)[index]).name) != 0)
-    {
-        if (strcasecmp((function->value).function_name, ((elements->all_labels)[index]).name) == 0)
-        {
-            index = SIZE_OF_ALL_VARIABLES;
-        }
-        index++;
-    }
-    if (index < SIZE_OF_ALL_VARIABLES)
-    {
-        strncpy(((elements->all_labels)[index]).name, (function->value).function_name, strlen((function->value).function_name));
-        index++;
-    }
+    fprintf(file_pointer, "%s:\n", (function->value).function_name);
+    fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
     Stack_Elem_t element = 0;
     Errors error = stack_element(&(elements->current_function), &element);
     size_t id = (size_t)element;
@@ -683,17 +623,18 @@ static void process_definition_of_function(struct Node *root, FILE *file_pointer
         abort();
     }
     size_t counter_of_parametres = 0;
-    process_expression_after_assignment(function->left, file_pointer, elements, &counter_of_parametres, FUNCTION);
+    add_parametres_for_function(function->left, file_pointer, elements, &counter_of_parametres, FUNCTION);
     add_parametres_for_function(function->right, file_pointer, elements, &counter_of_parametres, FUNCTION);
     (elements->all_functions)[id].is_parametres_processed = true;
-    (elements->all_functions)[id].end_local_memory_address = (counter_of_parametres + (elements->all_functions)[id].start_local_memory_address) * 4;
     //printf("start_address = %lu\nend_address = %lu\n", (elements->all_functions)[id].start_local_memory_address, (elements->all_functions)[id].end_local_memory_address);
-    elements->start_local_memory_address = (elements->all_functions)[id].end_local_memory_address + 1;
+    fprintf(file_pointer, "\tsub rsp, %d\n", 8 * (counter_of_parametres * 3));
     if (counter_of_parametres != 0)
     {
-        for (size_t address = counter_of_parametres + (elements->all_functions)[id].start_local_memory_address - 1; address >= (elements->all_functions)[id].start_local_memory_address; address--)
+        int parametre = 8 * (counter_of_parametres + 1);
+        for (size_t index = 0; index < counter_of_parametres; index++, parametre -= 8)
         {
-            fprintf(file_pointer, "push [%lu]\n", address);
+            fprintf(file_pointer, "\tmov rax, [rbp + %d]\n", parametre);
+            fprintf(file_pointer, "\tmov DWORD [rbp %d], eax\n", ((elements->all_functions)[id].all_local_variables)[index].address);
         }
     }
     bypass_of_tree(root->right, file_pointer, elements);
@@ -706,22 +647,10 @@ static void process_definition_of_function(struct Node *root, FILE *file_pointer
     }
     if (root->is_last_function)
     {
-        char start_str[50] = "start:";
+        char start_str[50] = "_start:";
         fprintf(file_pointer, "%s\n", start_str);
-        size_t index = 0;
-        while (index < SIZE_OF_ALL_VARIABLES && strlen(((elements->all_labels)[index]).name) != 0)
-        {
-            if (strcasecmp(start_str, ((elements->all_labels)[index]).name) == 0)
-            {
-                index = SIZE_OF_ALL_VARIABLES;
-            }
-            index++;
-        }
-        if (index < SIZE_OF_ALL_VARIABLES)
-        {
-            strncpy(((elements->all_labels)[index]).name, start_str, strlen(start_str));
-            index++;
-        }
+        fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
+        fprintf(file_pointer, "\tadd rsp, -16\n");
     }
     bypass_of_tree(root->node_after_operator, file_pointer, elements);
     return;
@@ -736,34 +665,7 @@ static void process_operator_return(struct Node *root, FILE *file_pointer, struc
     }
     size_t counter_of_parametres = 0;
     process_expression_after_assignment(root->left, file_pointer, elements, &counter_of_parametres, OPERATOR);
-    Stack_Elem_t element = 0;
-    elements->is_assignment = false;
-    Errors error = stack_element(&(elements->current_function), &element);
-    size_t index = (size_t)element;
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    size_t current_len = strlen((elements->all_functions)[index].function_name);
-    char str[50] = "caller_";
-    size_t len_of_call = strlen(str);
-    snprintf(str + len_of_call, sizeof(str) - len_of_call, "%s", (elements->all_functions)[index].function_name);
-    snprintf(str + len_of_call + current_len, sizeof(str) - len_of_call - current_len, ":");
-    size_t id = 0;
-    while (id < SIZE_OF_ALL_VARIABLES && strlen(((elements->all_labels)[id]).name) != 0)
-    {
-        if (strcasecmp(str, ((elements->all_labels)[id]).name) == 0)
-        {
-            id = SIZE_OF_ALL_VARIABLES;
-        }
-        id++;
-    }
-    if (id < SIZE_OF_ALL_VARIABLES)
-    {
-        strncpy(((elements->all_labels)[id]).name, str, strlen(str));
-    }
-    fprintf(file_pointer, "jmp %s\n", str);
+    fprintf(file_pointer, "\tpop rax\n\tmov rsp, rbp\n\tpop rbp\n\tret\n");
     return;
 }
 static void process_caller_of_function(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements)
@@ -784,7 +686,7 @@ static void process_caller_of_function(struct Node *root, FILE *file_pointer, st
     if (!elements->is_assignment)
     {
         size_t counter_of_parametres = 0;
-        process_expression_after_assignment(root->left, file_pointer, elements, &counter_of_parametres, CALLER_OF_FUNCTION); //all_variables, &counter_of_parametres);
+        add_parametres_for_function(root->left, file_pointer, elements, &counter_of_parametres, CALLER_OF_FUNCTION); //all_variables, &counter_of_parametres);
         add_parametres_for_function(root->right, file_pointer, elements, &counter_of_parametres, CALLER_OF_FUNCTION); //all_variables, &counter_of_parametres);
     }
     bool is_exists = false;
@@ -802,8 +704,9 @@ static void process_caller_of_function(struct Node *root, FILE *file_pointer, st
         fprintf(stderr, "Error! Definition of function %s is not exists\n", (root->value).function_name);
         abort();
     }
-    fprintf(file_pointer, "jmp %s:\n", (root->value).function_name);
-    fprintf(file_pointer, "caller_%s:\n", (root->value).function_name);
+    fprintf(file_pointer, "\tcall %s\n\tpush rax\n", (root->value).function_name);
+    // fprintf(file_pointer, "jmp %s:\n", (root->value).function_name);
+    // fprintf(file_pointer, "caller_%s:\n", (root->value).function_name);
     return;
 }
 
@@ -822,6 +725,7 @@ static void add_parametres_for_function(struct Node *root, FILE *file_pointer, s
     }
     add_parametres_for_function(root->left, file_pointer, elements, counter_of_parametres, type); //all_variables, counter_of_parametres);
     add_parametres_for_function(root->right, file_pointer, elements, counter_of_parametres, type); //all_variables, counter_of_parametres);
+    
     switch ((root->value).type)
     {
         case NUMBER:
@@ -920,7 +824,8 @@ static void process_operator_assignment(struct Node *root, FILE *file_pointer, s
                 {
                     is_exits = true;
                     strncpy((((elements->all_functions)[id]).all_local_variables)[index].name, ((root->left)->value).variable_name, strlen(((root->left)->value).variable_name));
-                    (((elements->all_functions)[id]).all_local_variables)[index].address = (int)(((elements->all_functions)[id]).start_local_memory_address + index);
+                    (((elements->all_functions)[id]).all_local_variables)[index].address = ((elements->all_functions)[id]).last_free_address;
+                    ((elements->all_functions)[id]).last_free_address -= 4;
                     ram_address = (((elements->all_functions)[id]).all_local_variables)[index].address;
                     break;
                 }
@@ -1002,8 +907,19 @@ static void process_expression_after_assignment(struct Node *root, FILE *file_po
             (*counter_of_parametres)++;
             return;
         }
+        case OPERATOR:
+        {
+            if ((root->value).operator_ == OPERATOR_COMMA)
+            {
+                //add_parametres_for_function(root->right, file_pointer, all_variables);
+                //process_built_in_function(root, file_pointer, all_variables);
+                return;
+            }
+            break;
+        }
         default:
         {
+            printf("operator = %d\n", (root->value).operator_);
             fprintf(stderr, "ERROR OF UNKNOWN TYPE\n");
             abort();
         }
@@ -1035,14 +951,18 @@ static void process_local_variable(struct Value *value, FILE *file_pointer, stru
         //printf("variable name = %s\n", (((elements->all_functions)[index]).all_local_variables)[id].name);
         if (strcasecmp((((elements->all_functions)[index]).all_local_variables)[id].name, value->variable_name) == 0)
         {
+            //printf("address = %d\n", (((elements->all_functions)[index]).all_local_variables)[id].address);
             is_added = true;
             break;
         }
         if (strlen((((elements->all_functions)[index]).all_local_variables)[id].name) == 0)
         {
+            //printf("new\n");
             is_added = true;
             strncpy((((elements->all_functions)[index]).all_local_variables)[id].name, value->variable_name, strlen(value->variable_name));
-            (((elements->all_functions)[index]).all_local_variables)[id].address = (int)(((elements->all_functions)[index]).start_local_memory_address + id);
+            (((elements->all_functions)[index]).all_local_variables)[id].address = ((elements->all_functions)[index]).last_free_address;
+            //printf("new address = %d\n", (((elements->all_functions)[index]).all_local_variables)[id].address);
+            ((elements->all_functions)[index]).last_free_address -= 4;
             break;
         }
     }
@@ -1057,7 +977,23 @@ static void process_local_variable(struct Value *value, FILE *file_pointer, stru
     }
 
     int address_of_variable = (((elements->all_functions)[index]).all_local_variables)[id].address;
-    fprintf(file_pointer, "pop [%d]\n", address_of_variable);
+    // fprintf(file_pointer, "pop [%d]\n", address_of_variable);
+    char str[10] = "";
+    char str_for_stack[10] = "";
+    if ((elements->all_registers)[0].is_free)
+    {
+        snprintf(str, 10, "eax");
+        snprintf(str_for_stack, 10, "rax");
+        (elements->all_registers)[0].is_free = false;
+    }
+    else
+    {
+        snprintf(str, 10, "edx");
+        snprintf(str_for_stack, 10, "rdx");
+        (elements->all_registers)[3].is_free = false;
+    }
+    fprintf(file_pointer, "\tmov %s, DWORD [rbp %d]\n", str, address_of_variable);
+    fprintf(file_pointer, "\tpush %s\n", str_for_stack);
     return;
 }
 
