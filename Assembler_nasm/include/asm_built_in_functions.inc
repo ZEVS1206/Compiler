@@ -2,6 +2,14 @@
 %define ASM_BUILT_IN_FUNCTIONS_IO
 
 
+%macro int_to_double 2
+    cvtsi2sd xmm%1, %2
+%endmacro
+
+%macro double_to_int 2
+    cvtsd2si %1, xmm%2
+%endmacro
+
 %macro input_str 2
     mov rax, 0
     mov rdi, 0

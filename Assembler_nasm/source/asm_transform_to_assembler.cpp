@@ -69,7 +69,7 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
     fprintf(file_pointer, "%%include \"include/asm_built_in_functions.inc\"\n\n");
     fprintf(file_pointer, "section .data\n\tbuffer_for_text db 256 dup(0)\n\tlen_of_buffer equ $ - buffer_for_text\n"
                           "\tbuffer_index dq 0\n\tbuffer_for_input db 256 dup(0)\n\tbuffer_size equ $ - buffer_for_input\n");
-    fprintf(file_pointer, "section .text\n\tglobal _start\n");
+    fprintf(file_pointer, "section .text\n\tglobal _start\n\textern pow\n");
     //create_function_strlen(file_pointer);
     //create_function_print(file_pointer);
 
@@ -1091,10 +1091,7 @@ static void create_deg_operation(FILE *file_pointer)
         fprintf(stderr, "Error! There is no output file\n");
         abort();
     }
-    fprintf(file_pointer, "\tpush rcx\n\tmov rcx, 1\n\tpush rbx\n\tmov ebx, eax\n");
-    fprintf(file_pointer, "cycle_deg:\n");
-    fprintf(file_pointer, "\timul eax, ebx\n\tinc ecx\n\tcmp ecx, edx\n\tjne cycle_deg\n");
-    fprintf(file_pointer, "\tpop rbx\n\tpop rcx\n");
+    fprintf(file_pointer, "\tpush rdi\n\tpush rsi\n\tmov rdi, rax\n\tmov rsi, rdx\n\tcall pow\n\tpop rsi\n\tpop rdi\n");
     return;
 }
 

@@ -57,7 +57,7 @@ run:
 # NASM compilation and run rules
 nasm:
 	nasm -f elf64 $(NASM_SOURCE_DIR)/*.asm -o $(NASM_OBJECTS)
-	ld $(NASM_OBJECTS) -o $(BUILD_DIR)/$(NASM_EXEC_NAME)
+	ld $(NASM_OBJECTS) -o $(BUILD_DIR)/$(NASM_EXEC_NAME) -lc -lm --dynamic-linker /lib64/ld-linux-x86-64.so.2
 
 nasm_run:
 	$(BUILD_DIR)/$(NASM_EXEC_NAME)
