@@ -58,6 +58,13 @@ struct Label
     int address;
 };
 
+struct Double_number
+{
+    char value[50];
+    double number;
+    char label_name[50];
+};
+
 struct Labels
 {
     char name[50];
@@ -66,7 +73,7 @@ struct Labels
 struct Function_type
 {
     char function_name[100];
-    struct Label *all_local_variables;
+    struct Variable *all_local_variables;
     int last_free_address;
     bool is_parametres_processed;
 };
@@ -81,13 +88,15 @@ struct Special_elements_for_processing
     struct MyStack stack_if;
     struct MyStack stack_while;
     struct MyStack stack_else;
-    struct MyStack stack_for_operations;
-    struct Label *all_variables;
+    struct MyStack stack_for_last_commands;
+    struct Variable *all_variables;
     struct Labels *all_labels;
     struct Function_type *all_functions;
     struct Register *all_registers;
+    struct Double_number *all_double_numbers;
     bool is_body_of_functions;
     bool is_assignment;
+    bool is_any_double_number;
 };
 
 Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels **all_labels);

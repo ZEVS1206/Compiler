@@ -15,7 +15,6 @@ static size_t get_size_of_number(int number);
 static char * get_type_name(Value_type type);
 static void get_value(struct Value *value, char *str);
 static char * get_operation(Operations operation);
-static char * get_var(Variables var);
 static const char * get_function(Function_name function);
 static const char * get_operator(Programm_operators operator_);
 static const char * get_comp_operation(Comparison_operations operation);
@@ -77,15 +76,6 @@ static size_t get_size_of_number(int number)
     return ans;
 }
 
-static char * get_var(Variables var)
-{
-    switch(var)
-    {
-        case VAR:     return "x";
-        case NOT_A_VAR: return "NOT A VARIABLE!";
-        default:        return "UNKNOWN VARIABLE!";
-    }
-}
 
 static char * get_operation(Operations operation)
 {
@@ -191,7 +181,7 @@ static void get_value(struct Value *value, char *str)
     else if (value->type == VARIABLE)
     {
         //char *ans = get_var(value->variable);
-        memcpy(str, value->variable_name, strlen(value->variable_name));
+        memcpy(str, value->variable.variable_name, strlen(value->variable.variable_name));
         return;
     }
     else if (value->type == FUNCTION || value->type == BUILT_IN_FUNCTION || value->type == CALLER_OF_FUNCTION)
@@ -235,11 +225,10 @@ static void create_nodes_in_dump(struct Node *root, FILE *file_pointer)
     fprintf(file_pointer, "box%p "
                         "[shape = record,"
                         " label = \"{<node_par>parent = %p|<node_adr>address = %p|<node_t>type = %s|<node_v>value = %s|<node_ton>type_of_number = %s|"
-                        "<node_cop>count_of_parametres = %lu|"
                         "{<node_l>left_node = %p|<node_r>right_node = %p|<node_ap>node_after_operator = %p|<node_fe>node_for_operator_else = %p}}\"];\n",
                         root, root->parent_node, root,
                         get_type_name((root->value).type),
-                        str, get_type_of_number(&(root->value)), (root->value).count_of_parametres,
+                        str, get_type_of_number(&(root->value)),
                         root->left, root->right, root->node_after_operator, root->node_for_operator_else);
 
 

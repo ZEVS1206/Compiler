@@ -33,7 +33,7 @@ static void get_expression_with_comparison_operations(struct Node **root, struct
 static void get_operator(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
 static void get_assignment_operator(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
 static void get_function(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
-static void get_functions_parametres(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index, size_t *count_of_parametres);
+static void get_functions_parametres(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
 static void get_assignment_operator_or_function(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
 static void get_if_or_while_operator(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
 static void get_operator_return(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index);
@@ -88,7 +88,7 @@ static void print_lexical_analyze_array(struct Node *lexical_analyze_array, size
         }
         else if ((lexical_analyze_array[index].value).type == VARIABLE)
         {
-            printf("variable = %s\n", (lexical_analyze_array[index].value).variable_name);
+            printf("variable = %s\n", (lexical_analyze_array[index].value).variable.variable_name);
         }
         else if ((lexical_analyze_array[index].value).type == FUNCTION ||
                  (lexical_analyze_array[index].value).type == BUILT_IN_FUNCTION ||
@@ -137,33 +137,33 @@ static char * skip_spaces(char *buffer, char *end_pointer)
 }
 
 
-static void transform_to_variable(const char *str, struct Value *value)
-{
-    if (value == NULL || str == NULL)
-    {
-        return;
-    }
+// static void transform_to_variable(const char *str, struct Value *value)
+// {
+//     if (value == NULL || str == NULL)
+//     {
+//         return;
+//     }
 
-    bool is_variable = true;
-    for (int index = 0; str[index] != '\0'; index++)
-    {
-        if (!isalpha(str[index]) && !isdigit(str[index]))
-        {
-            is_variable = false;
-            break;
-        }
-    }
-    if (is_variable)
-    {
-        value->variable = VAR;
-        value->type = VARIABLE;
-    }
-    else
-    {
-        value->variable = NOT_A_VAR;
-    }
-    return;
-}
+//     bool is_variable = true;
+//     for (int index = 0; str[index] != '\0'; index++)
+//     {
+//         if (!isalpha(str[index]) && !isdigit(str[index]))
+//         {
+//             is_variable = false;
+//             break;
+//         }
+//     }
+//     if (is_variable)
+//     {
+//         value->variable = VAR;
+//         value->type = VARIABLE;
+//     }
+//     else
+//     {
+//         value->variable = NOT_A_VAR;
+//     }
+//     return;
+// }
 
 
 void transform_to_arithmetic_operation(const char symbol, struct Value *value)
@@ -354,7 +354,7 @@ static char * get_operation_from_file(char *str, size_t size_of_str, char *buffe
     return buffer;
 }
 
-static void get_functions_parametres(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index, size_t *count_of_parametres)
+static void get_functions_parametres(struct Node **root, struct Node *lexical_analyze_array, int len_of_lexical_analyze_array, int *index)
 {
     if (*index >= len_of_lexical_analyze_array)
     {
@@ -364,7 +364,6 @@ static void get_functions_parametres(struct Node **root, struct Node *lexical_an
     struct Node *right_node = NULL;
     while (((lexical_analyze_array[*index]).value).operator_ == OPERATOR_COMMA)
     {
-        (*count_of_parametres)++;
         struct Value new_node_value = (lexical_analyze_array[*index]).value;
         (*index)++;
         ON_DEBUG(printf("go to get_staples_expression_or_number_or_variable from get_functions_parametres\n");)
@@ -372,7 +371,7 @@ static void get_functions_parametres(struct Node **root, struct Node *lexical_an
         get_staples_expression_or_number_or_variable(&left_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
         ON_DEBUG(printf("go to get_functions_parametres from get_functions_parametres\n");)
         ON_DEBUG(getchar();)
-        get_functions_parametres(&right_node, lexical_analyze_array, len_of_lexical_analyze_array, index, count_of_parametres);
+        get_functions_parametres(&right_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
         Errors_of_tree error = create_new_node(root, &new_node_value, left_node, right_node);
         if (error != NO_ERRORS_TREE)
         {
@@ -404,13 +403,9 @@ static void get_function(struct Node **root, struct Node *lexical_analyze_array,
     ON_DEBUG(printf("go to get_staples_expression_or_number_or_variable from get_function\n");)
     ON_DEBUG(getchar();)
     get_staples_expression_or_number_or_variable(&left_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
-    if (left_node != NULL)
-    {
-        new_node_value.count_of_parametres = 1;
-    }
     ON_DEBUG(printf("go to get_functions_parametres from get_function\n");)
     ON_DEBUG(getchar();)
-    get_functions_parametres(&right_node, lexical_analyze_array, len_of_lexical_analyze_array, index, &(new_node_value.count_of_parametres));
+    get_functions_parametres(&right_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
     if (((lexical_analyze_array[*index]).value).type != OPERATOR ||
         ((lexical_analyze_array[*index]).value).operator_ != OPERATOR_ROUND_BRACKET_CLOSE)
     {
@@ -1346,7 +1341,7 @@ static void parse_variable_to_lexical_analyze_array(struct Node **lexical_analyz
 
     ((*lexical_analyze_array[0]).value).type = VARIABLE;
     size_t len_of_str = strlen(str);
-    strncpy(((*lexical_analyze_array[0]).value).variable_name, str, len_of_str);
+    strncpy(((*lexical_analyze_array[0]).value).variable.variable_name, str, len_of_str);
     (*lexical_analyze_array)++;
     (*len_of_lexical_analyze_array)++;
     return;
@@ -1416,7 +1411,6 @@ static void parse_function_to_lexical_analyze_array(struct Node **lexical_analyz
     }
     size_t len_of_str = strlen(str);
     strncpy(((*lexical_analyze_array[0]).value).function_name, str, len_of_str);
-    ((*lexical_analyze_array[0]).value).count_of_parametres = 0;
     (*lexical_analyze_array)++;
     (*len_of_lexical_analyze_array)++;
     return;

@@ -58,11 +58,7 @@ enum Value_type
     CALLER_OF_FUNCTION = 8
 };
 
-enum Variables
-{
-    NOT_A_VAR = 0,
-    VAR       = 1
-};
+
 
 enum Operations
 {
@@ -111,6 +107,13 @@ enum Type_of_number
     DOUBLE       = 2
 };
 
+struct Variable
+{
+    char variable_name[100];
+    Type_of_number type_of_variable;
+    int variable_address;
+};
+
 struct Value
 {
     Value_type type;
@@ -118,15 +121,14 @@ struct Value
     {
         double number;
         Operations operation;
-        Variables variable;
-        char variable_name[100];
+        //char variable_name[100];
+        struct Variable variable;
         Programm_operators operator_;
         Comparison_operations comp_operation;
         char function_name[100];
         Function_name function;
     };
     Type_of_number type_of_number;
-    size_t count_of_parametres;
 };
 
 
