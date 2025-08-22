@@ -97,6 +97,7 @@ struct Special_elements_for_processing
     bool is_body_of_functions;
     bool is_assignment;
     bool is_any_double_number;
+    bool is_parametres;
 };
 
 Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels **all_labels);

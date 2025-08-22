@@ -1037,7 +1037,7 @@ static void get_expression_with_plus_or_minus(struct Node **root, struct Node *l
     //ON_DEBUG(printf("left_node in plus or minus = %f\n", (left_node->value).number);)
     if (left_node == NULL)
     {
-        struct Node new_left_node = {.value = {.type = NUMBER, .number = 0}};
+        struct Node new_left_node = {.value = {.type = NUMBER, .number = 0, .type_of_number = INT}};
         int id = 0;
         get_number(&left_node, &new_left_node, len_of_lexical_analyze_array, &id);
     }

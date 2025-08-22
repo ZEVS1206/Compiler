@@ -7,7 +7,7 @@
 %endmacro
 
 %macro double_to_int 2
-    cvtsd2si %1, xmm%2
+    cvttsd2si %1, xmm%2
 %endmacro
 
 %macro input_str 2
@@ -74,6 +74,47 @@ flush_buffer:
     mov qword [buffer_index], 0
     ret
 
+print_double:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    movsd [rbp - 8], xmm0
+    xor rcx, rcx
+    double_to_int rax, 0
+    mov rdi, rax
+    mov r15, rax
+    call print_number
+    mov rax, r15
+    movsd xmm0, [rbp - 8]
+    int_to_double 1, rax
+    subsd xmm0, xmm1
+    mov dl, '.'
+    call buffer_write_char
+    mov rcx, 6
+    movsd xmm1, [ten]
+.convert_frac:
+    mulsd xmm0, xmm1
+    double_to_int rax, 0
+    mov r15, rax
+    push rcx
+    mov rdi, rax
+    call print_number
+    pop rcx
+    mov rax, r15
+    ;add al, '0'
+    ;mov dl, al
+    ;mov r10, rcx
+    ;call buffer_write_char
+    ;mov rcx, r10
+    int_to_double 2, rax
+    subsd xmm0, xmm2
+    loop .convert_frac
+
+    mov rsp, rbp
+    pop rbp
+    ret
+
+
 print_number:
 	push rbp
 	mov rbp, rsp
@@ -82,9 +123,9 @@ print_number:
     xor rcx, rcx
 ;Process negative number
 ;--------------------------
-    cmp r9, 0
+    cmp r9d, 0
     jns .convert_number
-    neg r9
+    neg r9d
     mov dl, '-'
     call buffer_write_char
     xor rcx, rcx
@@ -123,11 +164,21 @@ print:
 cycle_processing:
 	cmp r13, 0
 	je end_of_cycle
+    sub rbx, 8
 	mov rdi, [rbx]
+    add rbx, 8
+    cmp rdi, 0
+    je number
+    movsd xmm0, [rbx]
+    call print_double
+    jmp next
+number:
+    mov rdi, [rbx]
 	call print_number
-	call print_enter
-	sub rbx, 8
-	dec r13
+next:
+    call print_enter
+	sub rbx, 16
+	sub r13, 2
 	jmp cycle_processing
 end_of_cycle:
     jmp end_
