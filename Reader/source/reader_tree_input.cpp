@@ -8,7 +8,7 @@
 #include "tree_tex_dump.h"
 //#include "../../Assembler/include/assembler.h"
 
-const char *built_in_functions[] = {"print", "input"};
+const char *built_in_functions[] = {"print", "input", "int", "double"};
 const size_t size_of_built_in_functions = sizeof(built_in_functions) / sizeof(char *);
 bool are_any_functions = false;
 
@@ -362,12 +362,17 @@ static void get_functions_parametres(struct Node **root, struct Node *lexical_an
     }
     struct Node *left_node = NULL;
     struct Node *right_node = NULL;
+    if (((lexical_analyze_array[*index]).value).type != OPERATOR)
+    {
+        return;
+    }
     while (((lexical_analyze_array[*index]).value).operator_ == OPERATOR_COMMA)
     {
         struct Value new_node_value = (lexical_analyze_array[*index]).value;
         (*index)++;
-        ON_DEBUG(printf("go to get_staples_expression_or_number_or_variable from get_functions_parametres\n");)
+        ON_DEBUG(printf("go to get_assignment_operator_or_function from get_functions_parametres\n");)
         ON_DEBUG(getchar();)
+        //get_assignment_operator_or_function(&left_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
         get_staples_expression_or_number_or_variable(&left_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
         ON_DEBUG(printf("go to get_functions_parametres from get_functions_parametres\n");)
         ON_DEBUG(getchar();)
@@ -400,8 +405,9 @@ static void get_function(struct Node **root, struct Node *lexical_analyze_array,
     (*index)++;
     struct Node *left_node = NULL;
     struct Node *right_node = NULL;
-    ON_DEBUG(printf("go to get_staples_expression_or_number_or_variable from get_function\n");)
+    ON_DEBUG(printf("go to get_assignment_operator_or_function from get_function\n");)
     ON_DEBUG(getchar();)
+    //get_assignment_operator_or_function(&left_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
     get_staples_expression_or_number_or_variable(&left_node, lexical_analyze_array, len_of_lexical_analyze_array, index);
     ON_DEBUG(printf("go to get_functions_parametres from get_function\n");)
     ON_DEBUG(getchar();)
@@ -917,6 +923,14 @@ static void get_staples_expression_or_number_or_variable(struct Node **root, str
         // ON_DEBUG(printf("root value after get_number = %f\n", ((*root)->value).number);)
         //printf("*buffer[0] = %c\n", *buffer[0]);
         //printf("root in staples = %p\n", (*root));
+        return;
+    }
+    else if (((lexical_analyze_array[*index]).value).type == BUILT_IN_FUNCTION ||
+             ((lexical_analyze_array[*index]).value).type == CALLER_OF_FUNCTION)
+    {
+        ON_DEBUG(printf("go to get_assignment_operator_or_function from get_staples_expression_or_number_or_variable\n");)
+        ON_DEBUG(getchar();)
+        get_assignment_operator_or_function(root, lexical_analyze_array, len_of_lexical_analyze_array, index);
         return;
     }
     ON_DEBUG(printf("index in get_staples_expression_or_number_or_variable = %d\n", *index);)

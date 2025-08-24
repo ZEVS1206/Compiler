@@ -7,6 +7,10 @@
 %endmacro
 
 %macro double_to_int 2
+    cvtsd2si %1, xmm%2
+%endmacro
+
+%macro floor_double 2
     cvttsd2si %1, xmm%2
 %endmacro
 
@@ -30,10 +34,102 @@ input:
     push rbp
     mov rbp, rsp
     input_str buffer_for_input, buffer_size
-	lea rdi, buffer_for_input
+	lea rdi, [buffer_for_input]
+    call check_if_double
+    cmp rax, 0
+    je int_number
+    jmp double_number
+int_number:
+    lea rdi, [buffer_for_input]
 	call convert_to_number
+    mov r11, 0
+    jmp end_input
+double_number:
+    lea rdi, [buffer_for_input]
+    call get_double
+    mov r11, 1
+end_input:
     pop rbp
     ret
+
+check_if_double:
+check_cycle:
+    mov dl, [rdi]
+    cmp dl, '.'
+    je founded
+    inc rdi
+    cmp dl, 10
+    jne check_cycle
+    mov rax, 0
+    jmp end__
+founded:
+    mov rax, 1
+end__:
+    ret
+
+get_double:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    lea rbx, [buffer_for_int_part]
+int_part:
+    mov dl, [rdi]
+    cmp dl, '.'
+    je end_int_part
+    mov [rbx], dl
+    inc rbx
+    inc rdi
+    jmp int_part
+end_int_part:
+    mov dl, 10
+    mov [rbx], dl
+    mov rsi, rdi
+    mov [rbp - 8], rsi
+    lea rdi, [buffer_for_int_part]
+    call convert_to_number
+    int_to_double 0, rax
+    mov rsi, [rbp - 8]
+    mov [rbp - 16], rax
+    inc rsi
+    lea rbx, [buffer_for_frac_part]
+frac_part:
+    mov dl, [rsi]
+    cmp dl, 10
+    je end_frac_part
+    mov [rbx], dl
+    inc rbx
+    inc rsi
+    jmp frac_part
+end_frac_part:
+    mov dl, 10
+    mov [rbx], dl
+    lea rdi, [buffer_for_frac_part]
+    call convert_to_number
+    int_to_double 1, rax
+    cmp rax, 5
+    jae imp
+    jmp next_
+imp:
+    mov rax, [rbp - 16]
+    inc rax
+    mov [rbp - 16], rax
+next_:
+    mov rax, [rbp - 16]
+    movsd xmm2, [ten]
+    movsd xmm3, [one]
+get_frac_part:
+    comisd xmm1, xmm3
+    jb end_get_frac_part
+    divsd xmm1, xmm2
+    jmp get_frac_part
+end_get_frac_part:
+    addsd xmm0, xmm1
+    mov rsp, rbp
+    pop rbp
+    ret
+
+    
+
 
 
 convert_to_number:
@@ -80,7 +176,7 @@ print_double:
     sub rsp, 32
     movsd [rbp - 8], xmm0
     xor rcx, rcx
-    double_to_int rax, 0
+    floor_double rax, 0
     mov rdi, rax
     mov r15, rax
     call print_number
@@ -94,18 +190,13 @@ print_double:
     movsd xmm1, [ten]
 .convert_frac:
     mulsd xmm0, xmm1
-    double_to_int rax, 0
+    floor_double rax, 0
     mov r15, rax
     push rcx
     mov rdi, rax
     call print_number
     pop rcx
     mov rax, r15
-    ;add al, '0'
-    ;mov dl, al
-    ;mov r10, rcx
-    ;call buffer_write_char
-    ;mov rcx, r10
     int_to_double 2, rax
     subsd xmm0, xmm2
     loop .convert_frac
@@ -173,6 +264,11 @@ cycle_processing:
     call print_double
     jmp next
 number:
+    mov r14, rdi
+    push 't'
+	print_str [rsp], 1
+	add rsp, 1
+    mov rdi, r14
     mov rdi, [rbx]
 	call print_number
 next:
