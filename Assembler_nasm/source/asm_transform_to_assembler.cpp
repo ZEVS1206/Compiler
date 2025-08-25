@@ -87,7 +87,7 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
     {
         return ERROR_OF_OPERATING_TREE;
     }
-    FILE *file_pointer = fopen("source/nasm/asm_programm.asm", "w");
+    FILE *file_pointer = fopen("Assembler_nasm/source/nasm/asm_programm.asm", "w");
     if (file_pointer == NULL)
     {
         return ERROR_OF_CREATE_ASM_FILE;

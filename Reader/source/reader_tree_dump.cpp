@@ -287,7 +287,7 @@ void graphic_dump(struct Tree *tree, char *operation)
         return;
     }
     tree->tmp_root = tree->root;
-    const char file_name[] = "dump/dump.txt";
+    const char file_name[] = "Assembler_nasm/dump/dump.txt";
     FILE *file_pointer = fopen(file_name, "w");
     if (file_pointer == NULL)
     {
@@ -298,7 +298,7 @@ void graphic_dump(struct Tree *tree, char *operation)
     fprintf(file_pointer, "node [margin = \"0.01\"];\nrankdir = \"TB\";\n");
 
 
-    char file_out_name[100] = "dump/";
+    char file_out_name[100] = "Assembler_nasm/dump/";
     strncat(file_out_name, operation, 100);
 
     create_nodes_in_dump(tree->tmp_root, file_pointer);

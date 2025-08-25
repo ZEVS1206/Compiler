@@ -4,11 +4,11 @@
 #include "assembler_structures.h"
 
 
-int main()
+int main(int argc, char *argv[])
 {
     struct Tree tree = {0};
-    //const char *file_name = argv[1];
-    Errors_of_tree error = tree_reader(&tree, "../Reader/source/input.txt");
+    const char *file_name = argv[1];
+    Errors_of_tree error = tree_reader(&tree, file_name); //"../Reader/source/input.txt");
     if (error != NO_ERRORS_TREE)
     {  
         fprintf(stderr, "error of tree = %d\n", error);
