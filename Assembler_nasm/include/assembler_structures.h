@@ -3,8 +3,10 @@
 
 #define SIZE_OF_ALL_VARIABLES 50
 #define SIZE_OF_ALL_REGISTERS 16
+#define TYPICAL_SIZE_OF_LOCAL_MEMORY 64
 const int TOXIC = 1985;
 const long long int RAM_SIZE  = 500;
+
 
 #include "../../Reader/include/tree.h"
 #include "stack.h"
@@ -75,6 +77,8 @@ struct Function_type
     char function_name[100];
     struct Variable *all_local_variables;
     int last_free_address;
+    int last_free_index;
+    size_t count_of_parametres;
     bool is_parametres_processed;
 };
 
@@ -90,6 +94,7 @@ struct Special_elements_for_processing
     struct MyStack stack_else;
     struct MyStack stack_for_last_commands;
     struct Variable *all_variables;
+    struct Variable *processed_variables;
     struct Labels *all_labels;
     struct Function_type *all_functions;
     struct Register *all_registers;

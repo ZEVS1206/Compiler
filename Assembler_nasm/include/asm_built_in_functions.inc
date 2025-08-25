@@ -32,25 +32,53 @@
 
 input:
     push rbp
-    mov rbp, rsp
+    mov  rbp, rsp
     input_str buffer_for_input, buffer_size
-	lea rdi, [buffer_for_input]
+    lea  rdi, [buffer_for_input]
+    mov  r11, 0
+    mov  al, [rdi]
+    cmp  al, '-'
+    jne  .check_double
+    mov  r11, 1
+    inc  rdi
+
+.check_double:
     call check_if_double
-    cmp rax, 0
-    je int_number
-    jmp double_number
-int_number:
-    lea rdi, [buffer_for_input]
-	call convert_to_number
-    mov r11, 0
-    jmp end_input
-double_number:
-    lea rdi, [buffer_for_input]
+    cmp  rax, 0
+    je   .int_number
+    jmp  .double_number
+
+.int_number:
+    lea  rdi, [buffer_for_input]
+    cmp  r11, 1
+    jne  .parse_int
+    inc  rdi
+.parse_int:
+    call convert_to_number
+    mov r12, 0
+    cmp  r11, 1
+    jne  .end_input
+    neg  rax
+    jmp  .end_input
+
+.double_number:
+    lea  rdi, [buffer_for_input]
+    cmp  r11, 1
+    jne  .parse_double
+    inc  rdi
+.parse_double:
     call get_double
-    mov r11, 1
-end_input:
-    pop rbp
+    mov r12, 1
+    cmp  r11, 1
+    jne  .end_input
+    pxor xmm11, xmm11
+    subsd xmm11, xmm0
+    movsd xmm0, xmm11
+
+.end_input:
+    pop  rbp
     ret
+
 
 check_if_double:
 check_cycle:
@@ -115,6 +143,14 @@ imp:
     mov [rbp - 16], rax
 next_:
     mov rax, [rbp - 16]
+    pxor xmm4, xmm4
+    comisd xmm1, xmm4
+    je input_int
+    jmp not_int
+input_int:
+    int_to_double 4, rax
+    movsd xmm0, xmm4
+not_int:
     movsd xmm2, [ten]
     movsd xmm3, [one]
 get_frac_part:
@@ -133,19 +169,20 @@ end_get_frac_part:
 
 
 convert_to_number:
-	xor rax, rax
-	mov ebx, 10
-processing_cycle:
-	mov dl, [rdi]
-	cmp dl, 10
-	je end_cycle
-	sub dl, '0'
-	imul eax, ebx
-	add al, dl
-	inc rdi
-	jmp processing_cycle
-end_cycle:
-	ret
+    xor     rax, rax
+    mov     ebx, 10
+.processing_cycle:
+    mov     dl, [rdi]
+    cmp     dl, 10
+    je      .end_cycle
+    sub     dl, '0'
+    imul    eax, ebx
+    movzx   edx, dl
+    add     eax, edx
+    inc     rdi
+    jmp     .processing_cycle
+.end_cycle:
+    ret
 
 print_enter:
 	mov dl, 10
@@ -194,7 +231,9 @@ print_double:
     mov r15, rax
     push rcx
     mov rdi, rax
+    ;mov r14, 0
     call print_number
+    ;mov r14, 1
     pop rcx
     mov rax, r15
     int_to_double 2, rax
@@ -212,6 +251,8 @@ print_number:
     mov r9, rdi
     mov r11, 10
     xor rcx, rcx
+    ;cmp r14, 1
+    ;jne .convert_number
 ;Process negative number
 ;--------------------------
     cmp r9d, 0
@@ -250,6 +291,7 @@ print:
 	mov rbp, rsp
 	cmp rdi, 0
 	je null_param
+    ;mov r14, 1
 	mov r13, rdi
 	lea rbx, [rbp + 8 * (rdi + 1)]
 cycle_processing:
@@ -264,11 +306,6 @@ cycle_processing:
     call print_double
     jmp next
 number:
-    mov r14, rdi
-    push 't'
-	print_str [rsp], 1
-	add rsp, 1
-    mov rdi, r14
     mov rdi, [rbx]
 	call print_number
 next:
