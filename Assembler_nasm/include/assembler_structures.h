@@ -45,7 +45,7 @@ enum Errors_of_ASM
     ERROR_OF_CONSTRUCTOR_ASM   = 8,
     ERROR_OF_PARSE_WORD        = 9,
     ERROR_OF_CREATE_ASM_FILE   = 10,
-    ERROR_OF_OPERATING_TREE      = 11
+    ERROR_OF_OPERATING_TREE    = 11
 };
 
 struct Register

@@ -6,6 +6,8 @@
 #include "assembler_structures.h"
 #include "../../Reader/include/tree.h"
 #include "stack.h"
+static Errors_of_ASM constructor(struct Special_elements_for_processing *elements);
+static Errors_of_ASM destructor(struct Special_elements_for_processing *elements);
 static void bypass_of_tree(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements);// struct Label **all_variables, struct Labels **all_labels, size_t *counter_of_if, size_t *counter_of_while, struct MyStack *stack_if, struct MyStack *stack_while);
 static void choose_way_of_operating(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements); // struct Label **all_variables, struct Labels **all_labels, size_t *counter_of_if, size_t *counter_of_while, struct MyStack *stack_if, struct MyStack *stack_while);
 static void process_operator_assignment(struct Node *root, FILE *file_pointer, struct Special_elements_for_processing *elements);// struct Label **all_variables);
@@ -81,6 +83,147 @@ static void transform_number(FILE *file_pointer, struct Value *value)
 }
 
 
+static Errors_of_ASM constructor(struct Special_elements_for_processing *elements)
+{
+    if (elements == NULL)
+    {
+        return ERROR_OF_CONSTRUCTOR_ASM;
+    }
+    elements->all_variables = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
+    if (elements->all_variables == NULL)
+    {
+        return ERROR_OF_CONSTRUCTOR_ASM;
+    }
+    for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
+    {
+        ((elements->all_variables)[index]).variable_address = -1;
+    }
+    elements->all_functions = (struct Function_type *) calloc(SIZE_OF_ALL_VARIABLES, sizeof(struct Function_type));
+    if (elements->all_functions == NULL)
+    {
+        return ERROR_OF_CONSTRUCTOR_ASM;
+    }
+    for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
+    {
+        ((elements->all_functions)[index]).all_local_variables = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
+        ((elements->all_functions)[index]).last_free_index = 0;
+        if (((elements->all_functions)[index]).all_local_variables == NULL)
+        {
+            return ERROR_OF_CONSTRUCTOR_ASM;
+        }
+    }
+    elements->all_registers = (struct Register *) calloc (SIZE_OF_ALL_REGISTERS, sizeof(struct Register));
+    if (elements->all_registers == NULL)
+    {
+        return ERROR_OF_CONSTRUCTOR_ASM;
+    }
+    for (size_t index = 0; index < SIZE_OF_ALL_REGISTERS; index++)
+    {
+        ((elements->all_registers)[index]).is_free = true;
+    }
+    elements->all_double_numbers = (struct Double_number *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Double_number));
+    if (elements->all_double_numbers == NULL)
+    {
+        return ERROR_OF_CONSTRUCTOR_ASM;
+    }
+    elements->processed_variables = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
+    if (elements->processed_variables == NULL)
+    {
+        return ERROR_OF_CONSTRUCTOR_ASM;
+    }
+    // struct MyStack stack_if = {0};
+    // struct MyStack stack_while = {0};
+    Errors error = NO_ERRORS;
+    error = STACK_CTOR(&(elements->stack_if), 10);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
+    error = STACK_CTOR(&(elements->stack_while), 10);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
+    error = STACK_CTOR(&(elements->stack_else), 10);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
+    error = STACK_CTOR(&(elements->current_function), 10);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
+    error = STACK_CTOR(&(elements->stack_for_last_commands), 10);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
+    elements->counter_of_if = 0;
+    elements->counter_of_while = 0;
+    elements->counter_of_else = 0;
+    elements->is_body_of_functions = false;
+    elements->is_assignment = false;
+    elements->is_any_double_number = false;
+    elements->is_parametres = false;
+    elements->is_round_function = false;
+    elements->is_caller_with_parametres = false;
+    return NO_ASM_ERRORS;
+}
+
+static Errors_of_ASM destructor(struct Special_elements_for_processing *elements)
+{
+    if (elements == NULL)
+    {
+        return ERROR_OF_DESTRUCTOR_ASM;
+    }
+    free(elements->all_variables);
+    free(elements->processed_variables);
+    for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
+    {
+        free(((elements->all_functions)[index]).all_local_variables);
+    }
+    free(elements->all_functions);
+    free(elements->all_registers);
+    free(elements->all_double_numbers);
+    Errors error_of_stack = stack_destructor(&(elements->stack_if));
+    if (error_of_stack != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error_of_stack);
+        abort();
+    }
+    error_of_stack = stack_destructor(&(elements->stack_while));
+    if (error_of_stack != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error_of_stack);
+        abort();
+    }
+    error_of_stack = stack_destructor(&(elements->stack_else));
+    if (error_of_stack != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error_of_stack);
+        abort();
+    }
+    error_of_stack = stack_destructor(&(elements->current_function));
+    if (error_of_stack != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error_of_stack);
+        abort();
+    }
+    error_of_stack = stack_destructor(&(elements->stack_for_last_commands));
+    if (error_of_stack != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error_of_stack);
+        abort();
+    }
+    return NO_ASM_ERRORS;
+}
+
 Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels **all_labels)
 {
     if (tree == NULL)
@@ -102,92 +245,11 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
     //create_function_print(file_pointer);
 
     struct Special_elements_for_processing elements = {0};
-    elements.all_labels = *all_labels;
-    elements.all_variables = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
-    if (elements.all_variables == NULL)
+    Errors_of_ASM error = constructor(&elements);
+    if (error != NO_ASM_ERRORS)
     {
-        return ERROR_OF_OPERATING_TREE;
+        return error;
     }
-    for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
-    {
-        ((elements.all_variables)[index]).variable_address = -1;
-    }
-    elements.all_functions = (struct Function_type *) calloc(SIZE_OF_ALL_VARIABLES, sizeof(struct Function_type));
-    if (elements.all_functions == NULL)
-    {
-        return ERROR_OF_OPERATING_TREE;
-    }
-    for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
-    {
-        ((elements.all_functions)[index]).all_local_variables = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
-        ((elements.all_functions)[index]).last_free_index = 0;
-        if (((elements.all_functions)[index]).all_local_variables == NULL)
-        {
-            return ERROR_OF_OPERATING_TREE;
-        }
-    }
-    elements.all_registers = (struct Register *) calloc (SIZE_OF_ALL_REGISTERS, sizeof(struct Register));
-    if (elements.all_registers == NULL)
-    {
-        return ERROR_OF_OPERATING_TREE;
-    }
-    for (size_t index = 0; index < SIZE_OF_ALL_REGISTERS; index++)
-    {
-        ((elements.all_registers)[index]).is_free = true;
-    }
-    elements.all_double_numbers = (struct Double_number *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Double_number));
-    if (elements.all_double_numbers == NULL)
-    {
-        return ERROR_OF_OPERATING_TREE;
-    }
-    elements.processed_variables = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
-    if (elements.processed_variables == NULL)
-    {
-        return ERROR_OF_OPERATING_TREE;
-    }
-    // struct MyStack stack_if = {0};
-    // struct MyStack stack_while = {0};
-    Errors error = NO_ERRORS;
-    error = STACK_CTOR(&(elements.stack_if), 10);
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = STACK_CTOR(&(elements.stack_while), 10);
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = STACK_CTOR(&(elements.stack_else), 10);
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = STACK_CTOR(&(elements.current_function), 10);
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = STACK_CTOR(&(elements.stack_for_last_commands), 10);
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    elements.counter_of_if = 0;
-    elements.counter_of_while = 0;
-    elements.counter_of_else = 0;
-    elements.start_local_memory_address = 250;
-    elements.is_body_of_functions = false;
-    elements.is_assignment = false;
-    elements.is_any_double_number = false;
-    elements.is_parametres = false;
-    elements.is_round_function = false;
-    elements.is_caller_with_parametres = false;
     if (!tree->are_any_functions)
     {
         char start_str[50] = "_start:";
@@ -196,48 +258,13 @@ Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels *
         fprintf(file_pointer, "\tsub rsp, 128\n");
     }
     bypass_of_tree(tree->root, file_pointer, &elements);// &all_variables, all_labels, &counter_of_if, &counter_of_while, &stack_if, &stack_while);
-    *all_labels = elements.all_labels;
     fprintf(file_pointer, "\tpop rbp\n\tmov rax, 60\n\txor rdi, rdi\n\tsyscall\n");
     print_double_numbers(file_pointer, elements.all_double_numbers);
-    free(elements.all_variables);
-    free(elements.processed_variables);
-    for (size_t index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
-    {
-        free(((elements.all_functions)[index]).all_local_variables);
-    }
-    free(elements.all_functions);
-    free(elements.all_registers);
-    free(elements.all_double_numbers);
     fclose(file_pointer);
-    error = stack_destructor(&(elements.stack_if));
-    if (error != NO_ERRORS)
+    error = destructor(&elements);
+    if (error != NO_ASM_ERRORS)
     {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = stack_destructor(&(elements.stack_while));
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = stack_destructor(&(elements.stack_else));
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = stack_destructor(&(elements.current_function));
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
-    error = stack_destructor(&(elements.stack_for_last_commands));
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
+        return error;
     }
     return NO_ASM_ERRORS;
 }
