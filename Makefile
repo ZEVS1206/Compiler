@@ -1,13 +1,14 @@
 FOLDER_ASSEMBLER = ./Assembler_nasm
 FOLDER_READER = ./Reader
 
-dir_asm = ../assembler.exe
-dir_nasm = ../nasm_program.exe
+build_dir = BUILD
+dir_asm = ../$(build_dir)/assembler.exe
+dir_nasm = ../$(build_dir)/nasm_program.exe
 file ?= test_file.rt2025
 
-real_start_asm = ./assembler.exe $(file)
+real_start_asm = $(build_dir)/./assembler.exe $(file)
 start_asm = ./assembler.exe
-start_nasm = ./nasm_program.exe
+start_nasm = $(build_dir)/./nasm_program.exe
 
 ASM = asm
 READ = rd
@@ -17,6 +18,7 @@ READ = rd
 all: assembler
 
 assembler:
+	mkdir -p $(build_dir)
 	make -C $(FOLDER_ASSEMBLER) dir=$(dir_asm)
 
 nasm:
@@ -29,5 +31,4 @@ run: assembler
 
 clean:
 	$(MAKE) -C $(FOLDER_ASSEMBLER) clean
-	rm -rf $(start_nasm)
-	rm -rf $(start_asm)
+	rm -rf $(build_dir)
