@@ -16,5 +16,6 @@ int main()
         fprintf(stderr, "error = %d\n", error);
         return 1;
     }
+    fclose(file_pointer);
     return 0;
 }

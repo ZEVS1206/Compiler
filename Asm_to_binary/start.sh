@@ -1,0 +1,1 @@
+ld -static build/$1.o -o build/$1 -lc -lm

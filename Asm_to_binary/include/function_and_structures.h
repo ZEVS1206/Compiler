@@ -22,9 +22,18 @@ struct CMD
     uint8_t byte_code[16];
 };
 
+struct Function_type
+{
+    char name[50];
+    unsigned position_in_strtab;
+    size_t offset_in_text;
+};
+
 struct Binary_file
 {
     FILE *file_pointer;
+    size_t count_of_functions;
+    struct Function_type *all_functions;
     char section_header_str_table[256];//Table of names of sections
     size_t len_section_header_str_table;
     char symbol_string_table[256];//Table of names of symbols
@@ -34,7 +43,53 @@ struct Binary_file
     size_t len_buffer_of_commands;
 };
 
+enum Opcode
+{
+    UNKNOWN_OPCODE = 0,
+    OP_MOV_REG_IMM = 1,
+    OP_ADD_REG_REG = 2,
+    OP_JMP_LABEL   = 3
+};
+
+enum Register
+{
+    UNKNOWN_REGISTER = 0,
+    RAX              = 1,
+    RBX              = 2,
+    RCX              = 3,
+    RDX              = 4,
+    EAX              = 5,
+    EBX              = 6,
+    ECX              = 7,
+    EDX              = 8
+};
+
+struct Instruction
+{
+    Opcode opcode;
+    Register register_dest;//destination / first parametre
+    Register register_source;// source / second parametre
+    int64_t imm;//const value in register
+    char label_name[100];
+    int32_t pc;//offset of this instruction in bytes from start point
+};
+
+struct Label
+{
+    char label_name[100];
+    int32_t pc;
+};
+
+struct Data_CMDS
+{
+    struct Instruction *instructions;
+    struct Label *labels;
+    size_t size_of_instructions;
+    size_t size_of_labels;
+};
+
 Errors_of_binary transform_asm_to_binary(FILE *file_pointer);
+
 
 
 // typedef struct {
