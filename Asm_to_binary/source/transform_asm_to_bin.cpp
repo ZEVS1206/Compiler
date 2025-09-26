@@ -358,22 +358,22 @@ static Register get_register(const char *register_name)
     {
         return RDX;
     }
-    if (strcasecmp(register_name, "eax") == 0)
-    {
-        return EAX;
-    }
-    if (strcasecmp(register_name, "ebx") == 0)
-    {
-        return EBX;
-    }
-    if (strcasecmp(register_name, "ecx") == 0)
-    {
-        return ECX;
-    }
-    if (strcasecmp(register_name, "edx") == 0)
-    {
-        return EDX;
-    }
+    // if (strcasecmp(register_name, "eax") == 0)
+    // {
+    //     return EAX;
+    // }
+    // if (strcasecmp(register_name, "ebx") == 0)
+    // {
+    //     return EBX;
+    // }
+    // if (strcasecmp(register_name, "ecx") == 0)
+    // {
+    //     return ECX;
+    // }
+    // if (strcasecmp(register_name, "edx") == 0)
+    // {
+    //     return EDX;
+    // }
     return UNKNOWN_REGISTER;
 }
 
@@ -513,10 +513,12 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
             
             char param_1[8] = "";
             char param_2[8] = "";
+            start = skip_spaces(start, end_pointer);
             int res = sscanf(start, "%7[^,]", param_1);
             start += strlen(param_1);
             start += 2;
             res += sscanf(start, "%s", param_2);
+            //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
             if (res != 2)
             {
                 fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
@@ -529,11 +531,11 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
                 char *end = NULL;
                 imm = strtol(param_2, &end, 10);
             }
-            instruction.opcode = OP_MOV_REG_IMM;
+            instruction.opcode = OP_MOV_REG_REG;
             instruction.register_dest = get_register(param_1);
             if (is_digit)
             {
-                instruction.register_source = UNKNOWN_REGISTER;
+                instruction.opcode = OP_MOV_REG_IMM;
                 instruction.imm = imm;
                 pc += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
             }
@@ -645,28 +647,30 @@ static void encode_instructions(struct Data_CMDS *commands, struct Binary_file *
             //Prefix REX
             *pointer_in_buffer_cmds = 0x48;
             pointer_in_buffer_cmds++;
-            //opcode b8 + code of register
-            
-            if (instruction->register_source == UNKNOWN_REGISTER)
-            {
-                *pointer_in_buffer_cmds = 0xB8 + (instruction->register_dest & 0x7);
-                pointer_in_buffer_cmds++;
-                uint64_t imm = (uint64_t) instruction->imm;
-                memcpy(pointer_in_buffer_cmds, &imm, 8);
-                pointer_in_buffer_cmds += 8;
-                buffer_of_commands_size += 1 + 8 + 1;
-            } 
-            // else
-            // {
-            //     *pointer_in_buffer_cmds = 0xB8;
 
-            //     uint8_t modrm = 0xC0;
-            //     modrm |= ((instruction->register_dest & 0x7) << 3);
-            //     modrm |= ((instruction->register_source) & 0x7);
-            //     *pointer_in_buffer_cmds = modrm;
-            //     pointer_in_buffer_cmds++;
-            //     buffer_of_commands_size += 1 + 1 + 1;
-            // }
+            //for ||mov reg, imm|| opcode = 0xB8
+            *pointer_in_buffer_cmds = 0xB8 + (instruction->register_dest & 0x7);
+            pointer_in_buffer_cmds++;
+            //imm little_endian
+            uint64_t imm = (uint64_t) instruction->imm;
+            memcpy(pointer_in_buffer_cmds, &imm, 8);
+            pointer_in_buffer_cmds += 8;
+            buffer_of_commands_size += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
+        }
+        else if (instruction->opcode == OP_MOV_REG_REG)
+        {
+            //Prefix REX
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            //printf("register_dest = %d\nregister_source = %d\n", instruction->register_dest, instruction->register_source);
+            *pointer_in_buffer_cmds = 0x89;//for ||mov reg, reg|| opcode = 0x89
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0xC0;//mod = 11b - register mode
+            modrm |= ((instruction->register_source & 0x7) << 3);
+            modrm |= (instruction->register_dest & 0x7);
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1 + 1 + 1;
         }
     }
     binary_struct->len_buffer_of_commands = buffer_of_commands_size;

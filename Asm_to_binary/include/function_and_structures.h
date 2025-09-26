@@ -1,5 +1,8 @@
 #ifndef FUNCTION_AND_STRUCTURES_H
 #define FUNCTION_AND_STRUCTURES_H
+
+#pragma once
+
 #include <stdio.h>
 #include <stdint.h>
 #include <elf.h>
@@ -48,20 +51,17 @@ enum Opcode
     UNKNOWN_OPCODE = 0,
     OP_MOV_REG_IMM = 1,
     OP_ADD_REG_REG = 2,
-    OP_JMP_LABEL   = 3
+    OP_JMP_LABEL   = 3,
+    OP_MOV_REG_REG = 4
 };
 
 enum Register
 {
-    UNKNOWN_REGISTER = 0,
-    RAX              = 1,
-    RBX              = 2,
-    RCX              = 3,
-    RDX              = 4,
-    EAX              = 5,
-    EBX              = 6,
-    ECX              = 7,
-    EDX              = 8
+    RAX              = 0,
+    RCX              = 1,
+    RDX              = 2,
+    RBX              = 3,
+    UNKNOWN_REGISTER = 4
 };
 
 struct Instruction
@@ -90,7 +90,16 @@ struct Data_CMDS
 
 Errors_of_binary transform_asm_to_binary(FILE *file_pointer);
 
-
+const struct CMD registers_array[] = {{"rax", 0x000},
+                                {"rbx", 0x011},
+                                {"rcx", 0x001},
+                                {"rdx", 0x010},
+                                {"eax", 0x000},
+                                {"ebx", 0x011},
+                                {"ecx", 0x001},
+                                {"edx", 0x010}
+                               };
+const size_t size_of_registers_array = sizeof(registers_array) / sizeof(struct CMD);
 
 // typedef struct {
 //     Elf64_Word   sh_name;      // индекс имени секции в .shstrtab

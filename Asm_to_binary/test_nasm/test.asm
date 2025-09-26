@@ -3,4 +3,8 @@ section .text
     global _start
 
 _start:
-    mov rax, 60
+    mov rcx, rdx
+    mov rax, rbx
+    mov rbx, rax
+    mov rax, 29
+    mov rcx, rax
