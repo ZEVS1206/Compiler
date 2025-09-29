@@ -52,7 +52,10 @@ enum Opcode
     OP_MOV_REG_IMM = 1,
     OP_ADD_REG_REG = 2,
     OP_JMP_LABEL   = 3,
-    OP_MOV_REG_REG = 4
+    OP_MOV_REG_REG = 4,
+    OP_XOR_REG_REG = 5,
+    OP_XOR_REG_IMM = 6,
+    OP_SYSCALL     = 7
 };
 
 enum Register
@@ -61,7 +64,11 @@ enum Register
     RCX              = 1,
     RDX              = 2,
     RBX              = 3,
-    UNKNOWN_REGISTER = 4
+    RSP              = 4,
+    RBP              = 5,
+    RSI              = 6,
+    RDI              = 7,
+    UNKNOWN_REGISTER = 8
 };
 
 struct Instruction

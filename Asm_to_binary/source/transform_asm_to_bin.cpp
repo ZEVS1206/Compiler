@@ -358,6 +358,19 @@ static Register get_register(const char *register_name)
     {
         return RDX;
     }
+    if (strcasecmp(register_name, "rsp") == 0)
+    {
+        return RSP;
+    }
+    if (strcasecmp(register_name, "rsi") == 0)
+    {
+        return RSI;
+    }
+    if (strcasecmp(register_name, "rdi") == 0)
+    {
+        return RDI;
+    }
+
     // if (strcasecmp(register_name, "eax") == 0)
     // {
     //     return EAX;
@@ -545,6 +558,46 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
                 pc += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
             }
         }
+        else if (strcasecmp(operation, "xor") == 0)
+        {
+            char param_1[8] = "";
+            char param_2[8] = "";
+            start = skip_spaces(start, end_pointer);
+            int res = sscanf(start, "%7[^,]", param_1);
+            start += strlen(param_1);
+            start += 2;
+            res += sscanf(start, "%s", param_2);
+            //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
+            if (res != 2)
+            {
+                fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
+                abort();
+            }
+            // bool is_digit = is_str_digit(param_2);
+            // int64_t imm = 0;
+            // if (is_digit)
+            // {
+            //     char *end = NULL;
+            //     imm = strtol(param_2, &end, 10);
+            // }
+            instruction.opcode = OP_XOR_REG_REG;
+            instruction.register_dest = get_register(param_1);
+            // if (is_digit)
+            // {
+            //     instruction.opcode = OP_XOR_REG_IMM;
+            //     instruction.imm = imm;
+            //     pc += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
+            // }
+            // else
+            // {
+            instruction.register_source = get_register(param_2);
+            pc += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
+            //}
+        }
+        else if (strcasecmp(operation, "syscall") == 0)
+        {
+            instruction.opcode = OP_SYSCALL;
+        }
         commands.instructions[commands.size_of_instructions++] = instruction;
         if (commands.size_of_instructions >= size_of_file)
         {
@@ -671,6 +724,27 @@ static void encode_instructions(struct Data_CMDS *commands, struct Binary_file *
             *pointer_in_buffer_cmds = modrm;
             pointer_in_buffer_cmds++;
             buffer_of_commands_size += 1 + 1 + 1;
+        }
+        else if (instruction->opcode == OP_XOR_REG_REG)
+        {
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x31;
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0xC0;//mod = 11b - register mode
+            modrm |= ((instruction->register_source & 0x7) << 3);
+            modrm |= (instruction->register_dest & 0x7);
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1 + 1 + 1;
+        }
+        else if (instruction->opcode == OP_SYSCALL)
+        {
+            *pointer_in_buffer_cmds = 0x0F;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x05;
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 2;
         }
     }
     binary_struct->len_buffer_of_commands = buffer_of_commands_size;

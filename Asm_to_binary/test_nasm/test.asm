@@ -1,10 +1,13 @@
-;1 _start
+;2 func _start
 section .text
     global _start
 
+func:
+    mov rax, 60
+    xor rdi, rdi
+    syscall
+
 _start:
-    mov rcx, rdx
-    mov rax, rbx
-    mov rbx, rax
-    mov rax, 29
-    mov rcx, rax
+    mov rax, 60
+    xor rdi, rdi
+    syscall
