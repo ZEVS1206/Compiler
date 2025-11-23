@@ -2,5 +2,6 @@
     "files.associations": {
         "type_traits": "cpp",
         "utility": "cpp"
-    }
+    },
+    "makefile.configureOnOpen": true
 }

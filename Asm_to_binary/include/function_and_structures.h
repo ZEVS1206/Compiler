@@ -32,6 +32,15 @@ struct Function_type
     size_t offset_in_text;
 };
 
+struct Relocation
+{
+    size_t offset_in_text;
+    char symbol_name[100];
+    uint32_t type;
+    int64_t additional_offset;
+    int symbol_index;
+};
+
 struct Binary_file
 {
     FILE *file_pointer;
@@ -42,20 +51,29 @@ struct Binary_file
     char symbol_string_table[256];//Table of names of symbols
     size_t len_symbol_string_table;
     Elf64_Ehdr ELF_Header;
-    uint8_t *buffer_of_commands;
-    size_t len_buffer_of_commands;
+    uint8_t *buffer_of_text_commands;
+    size_t len_buffer_of_text_commands;
+    uint8_t *buffer_of_data_commands;
+    size_t len_buffer_of_data_commands;
+    struct Relocation *relocation_table;
+    size_t size_of_relocation_table;
+    struct Label *data_labels;
+    struct Label *text_labels;
+    size_t size_of_data_labels;
+    size_t size_of_text_labels;
 };
 
 enum Opcode
 {
-    UNKNOWN_OPCODE = 0,
-    OP_MOV_REG_IMM = 1,
-    OP_ADD_REG_REG = 2,
-    OP_JMP_LABEL   = 3,
-    OP_MOV_REG_REG = 4,
-    OP_XOR_REG_REG = 5,
-    OP_XOR_REG_IMM = 6,
-    OP_SYSCALL     = 7
+    UNKNOWN_OPCODE   = 0,
+    OP_MOV_REG_IMM   = 1,
+    OP_ADD_REG_REG   = 2,
+    OP_JMP_LABEL     = 3,
+    OP_MOV_REG_REG   = 4,
+    OP_XOR_REG_REG   = 5,
+    OP_XOR_REG_IMM   = 6,
+    OP_SYSCALL       = 7,
+    OP_MOV_REG_LABEL = 8
 };
 
 enum Register
@@ -71,28 +89,81 @@ enum Register
     UNKNOWN_REGISTER = 8
 };
 
-struct Instruction
+enum Sections
 {
-    Opcode opcode;
-    Register register_dest;//destination / first parametre
-    Register register_source;// source / second parametre
-    int64_t imm;//const value in register
-    char label_name[100];
-    int32_t pc;//offset of this instruction in bytes from start point
+    UNKNOWN_SECTION = 0,
+    SECTION_DATA    = 1,
+    SECTION_TEXT    = 2
+};
+enum Initial_instructions
+{
+    UNKNOWN_INSTRUCTION = 0,
+    INSTRUCTION_DB      = 1,
+    INSTRUCTION_DW      = 2,
+    INSTRUCTION_DD      = 4,
+    INSTRUCTION_DQ      = 8,
+    INSTRUCTION_EQU     = 5
+};
+
+enum Type_of_operand
+{
+    UNKNOWN_TYPE = 0,
+    TYPE_NUMBER  = 1,
+    TYPE_STRING  = 2
+};
+
+struct Instruction_operand
+{
+    Type_of_operand type;
+    union
+    {
+        char symbol_operand;
+        char string_operand[100];
+        int64_t numeric_operand;
+    };  
+};
+
+enum Type_of_label
+{
+    NOT_A_LABEL     = 0,
+    CONSTANT_LABEL  = 1,
+    LABEL_WITH_DATA = 2,
+    LABEL_FOR_JMP   = 3
 };
 
 struct Label
 {
     char label_name[100];
     int32_t pc;
+    size_t size_of_data;
+    Type_of_label type;
+    int64_t imm_data;
+    unsigned position_in_strtab;
 };
+
+struct Instruction
+{
+    Initial_instructions initial_instruction;
+    struct Instruction_operand operands;
+    Sections section;
+    Opcode opcode;
+    Register register_dest;//destination / first parametre
+    Register register_source;// source / second parametre
+    int64_t imm;//const value in register
+    struct Label label;
+    int32_t pc;//offset of this instruction in bytes from start point
+};
+
+
 
 struct Data_CMDS
 {
     struct Instruction *instructions;
-    struct Label *labels;
+    struct Label *labels_text;
+    struct Label *labels_data;
     size_t size_of_instructions;
-    size_t size_of_labels;
+    size_t size_of_labels_text;
+    size_t size_of_labels_data;
 };
 
 Errors_of_binary transform_asm_to_binary(FILE *file_pointer);
