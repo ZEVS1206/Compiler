@@ -1,0 +1,66 @@
+;1 _start
+section .data
+    msg: db 'HELLO, World', 10
+    len equ $ - msg
+
+section .text
+    global _start
+%ifndef ASM_BUILT_IN_FUNCTIONS_IO
+%define ASM_BUILT_IN_FUNCTIONS_IO
+
+
+%macro int_to_double 2
+    cvtsi2sd xmm%1, %2
+%endmacro
+
+%macro double_to_int 2
+    cvtsd2si %1, xmm%2
+%endmacro
+
+%macro floor_double 2
+    cvttsd2si %1, xmm%2
+%endmacro
+
+%macro input_str 2
+    mov rax, 0
+    mov rdi, 0
+    mov rsi, %1
+    mov rdx, %2
+    syscall
+%endmacro
+
+%macro print_str 2
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, %1
+    mov rdx, %2
+    syscall
+%endmacro
+
+input:
+    push rbp
+    mov  rbp, rsp
+    input_str buffer_for_input, buffer_size
+    lea  rdi, [buffer_for_input]
+    mov  r11, 0
+    mov  al, [rdi]
+    cmp  al, '-'
+    jne  .check_double
+    mov  r11, 1
+    inc  rdi
+
+.check_double:
+    call check_if_double
+    cmp  rax, 0
+    je   .int_number
+    jmp  .double_number
+_start:
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, msg
+    mov rdx, len
+    syscall
+
+    mov rax, 60
+    xor rdi, rdi
+    syscall
