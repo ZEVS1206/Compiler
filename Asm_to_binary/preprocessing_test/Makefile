@@ -3,7 +3,7 @@ CFLAGS=-ggdb3 -std=c++17 -O0 -Wall -Wextra -Weffc++ -Waggressive-loop-optimizati
 
 LAUNCH = start
 
-.PHONY: all run
+.PHONY: all run clean
 all: $(LAUNCH)
 
 $(LAUNCH): main.cpp
@@ -11,4 +11,5 @@ $(LAUNCH): main.cpp
 
 run:
 	./$(LAUNCH)
-
+clean:
+	rm -rf $(LAUNCH)

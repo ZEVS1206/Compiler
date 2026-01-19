@@ -1109,6 +1109,7 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
         id++;
         position++;
     }
+    //printf("list_with_operands = %s\n", list_with_operands);
     instruction->initial_instruction = get_initial_instruction(initial_instruction);
     if (instruction->initial_instruction == UNKNOWN_INSTRUCTION)
     {
@@ -1144,12 +1145,12 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
                 is_between_quotation_marks = false;
                 continue;
             }
-            if (list_with_operands[index] == ',' ||
-                (list_with_operands[index] == ' ' && !is_between_quotation_marks))
+            if ((list_with_operands[index] == ',' ||
+                list_with_operands[index] == ' ' ) && !is_between_quotation_marks)
             {   
                 continue;
             }
-            if (isalpha(list_with_operands[index]) || list_with_operands[index] == ' ')
+            if (is_between_quotation_marks)
             {
                 operand[pos++] = list_with_operands[index];
             }
@@ -1169,11 +1170,11 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
                 operand[pos++] = new_symbol;
             }
         }
-        printf("operand = %s\n", operand);
+        //printf("operand = %s\n", operand);
         size_t len_of_operand = strlen(operand);
         memcpy((instruction->operands).string_operand, operand, len_of_operand);
         (instruction->operands).type = TYPE_STRING;
-        printf("(instruction->label).label_name = %s\n", (instruction->label).label_name);
+        //printf("(instruction->label).label_name = %s\n", (instruction->label).label_name);
         int pc = find_label_and_change_it(commands, (instruction->label).label_name, len_of_operand, SECTION_DATA, LABEL_WITH_DATA, len_of_operand);
     }
     instruction->pc = *pc;
