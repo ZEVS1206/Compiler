@@ -5,13 +5,13 @@
 
 #include "../include/prepocessing_header.h"
 
-int preprocess_programm(FILE *source, FILE *add, FILE *result);
+
 static size_t get_size_of_file(FILE *file_pointer);
-void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macros, size_t size_of_macros);
-int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t size_of_source,
-                               char *buffer_with_commands_from_add,    size_t size_of_add,  
-                               char *buffer_with_out_commands,         size_t size_of_result,
-                               struct Macro_type *macros,              size_t size_of_macros);
+static void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macros, size_t size_of_macros);
+static int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t size_of_source,
+                                      char *buffer_with_commands_from_add,    size_t size_of_add,  
+                                      char *buffer_with_out_commands,         size_t size_of_result,
+                                      struct Macro_type *macros,              size_t size_of_macros);
 
 static size_t get_size_of_file(FILE *file_pointer)
 {
@@ -21,7 +21,7 @@ static size_t get_size_of_file(FILE *file_pointer)
     return size_of_file;
 }
 
-void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macros, size_t size_of_macros)
+static void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macros, size_t size_of_macros)
 {
     for (size_t index = 0; index < size_of_buffer; ++index)
     {
@@ -32,7 +32,7 @@ void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macr
         char info_of_macro[STATIC_LEN_FOR_MIDDLE_ARRAYS];
         memset(info_of_macro, 0, STATIC_LEN_FOR_MIDDLE_ARRAYS);
         size_t pos = 0;
-        while (buffer[index] != ' ')
+        while (index < size_of_buffer && buffer[index] != ' ')
         {
             info_of_macro[pos++] = buffer[index++];
         }
@@ -94,31 +94,56 @@ void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macr
         strcpy(macros[id].body_of_macro, info_of_macro);
         macros[id].size_of_body_of_macro = pos - 1;
     }
-    for (size_t id = 0; id < size_of_macros; ++id)
-    {
-        if (strlen(macros[id].name_of_macro) == 0)
-        {
-            break;
-        }
-        printf("%s\n", macros[id].name_of_macro);
-        printf("%s\n", macros[id].body_of_macro);
-        //printf("count_of_arguments = %lu\n", macros[id].count_of_arguments);
-    }
+    // for (size_t id = 0; id < size_of_macros; ++id)
+    // {
+    //     if (strlen(macros[id].name_of_macro) == 0)
+    //     {
+    //         break;
+    //     }
+    //     printf("%s\n", macros[id].name_of_macro);
+    //     printf("%s\n", macros[id].body_of_macro);
+    //     //printf("count_of_arguments = %lu\n", macros[id].count_of_arguments);
+    // }
     return;
 }
 
-int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t size_of_source,
-                               char *buffer_with_commands_from_add,    size_t size_of_add,  
-                               char *buffer_with_out_commands,         size_t size_of_result,
-                               struct Macro_type *macros,              size_t size_of_macros)
+static int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t size_of_source,
+                                      char *buffer_with_commands_from_add,    size_t size_of_add,  
+                                      char *buffer_with_out_commands,         size_t size_of_result,
+                                      struct Macro_type *macros,              size_t size_of_macros)
 {
     size_t position_in_result = 0;
+    bool section_code_starts = false;
     for (size_t pos_in_source = 0; pos_in_source < size_of_source; ++pos_in_source)
     {
-        // if (position_in_result >= size_of_result)
-        // {
-        //     break;
-        // }
+        if (position_in_result >= size_of_result)
+        {
+            break;
+        }
+        //printf("buffer_with_commands_from_source[%lu] = %c\n", pos_in_source, buffer_with_commands_from_source[pos_in_source]);
+        if (section_code_starts)
+        {
+            size_t id_add_buffer = 0;
+            while (id_add_buffer < size_of_add && position_in_result < size_of_result)
+            {
+                if (buffer_with_commands_from_add[id_add_buffer] == '%')
+                {
+                    while (id_add_buffer < size_of_add && !(buffer_with_commands_from_add[id_add_buffer] == '%' &&
+                           id_add_buffer + 1 < size_of_add && buffer_with_commands_from_add[id_add_buffer + 1] == 'e'))
+                    {
+                        id_add_buffer++;
+                    }
+                    while (id_add_buffer < size_of_add && !isspace(buffer_with_commands_from_add[id_add_buffer]))
+                    {
+                        id_add_buffer++;
+                    }
+                    continue;
+                }
+                buffer_with_out_commands[position_in_result++] = buffer_with_commands_from_add[id_add_buffer++];
+            }
+            buffer_with_out_commands[position_in_result++] = '\n';
+            section_code_starts = false;
+        }
         if (isspace(buffer_with_commands_from_source[pos_in_source]))
         {
             buffer_with_out_commands[position_in_result++] = buffer_with_commands_from_source[pos_in_source];
@@ -133,6 +158,7 @@ int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t si
             index_line++;
             pos_for_get_line++;
         }
+        //printf("line_after_first_while = %s\n", line);
         bool it_is_macro = false;
         size_t index_in_macros = 0;
         for (index_in_macros = 0; index_in_macros < size_of_macros; ++index_in_macros)
@@ -177,7 +203,7 @@ int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t si
                 }
                 index_in_body++;
                 int argument = (macros[index_in_macros]).body_of_macro[index_in_body] - '0';
-                snprintf(buffer_with_out_commands + position_in_result, strlen((macros[index_in_macros]).arguments[argument - 1]) + 1, "%s", (macros[index_in_macros]).arguments[argument - 1]);
+                snprintf(buffer_with_out_commands + position_in_result, size_of_result, "%s", (macros[index_in_macros]).arguments[argument - 1]);
                 position_in_result += strlen((macros[index_in_macros]).arguments[argument - 1]);
             }
             buffer_with_out_commands[position_in_result++] = '\n';
@@ -209,7 +235,7 @@ int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t si
                 line[index_line] = buffer_with_commands_from_source[pos_for_get_line];
             }
 
-            snprintf(buffer_with_out_commands + position_in_result, strlen(line) + 1, "%s", line);
+            snprintf(buffer_with_out_commands + position_in_result, size_of_result, "%s", line);
             //printf("%s\n", buffer_with_out_commands);
             position_in_result += strlen(line);
             pos_in_source = pos_for_get_line;
@@ -228,15 +254,16 @@ int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t si
             pos_in_source = pos_for_get_line;
             if (strcasecmp(line, "global _start\n") == 0)
             {
-                snprintf(buffer_with_out_commands + position_in_result, strlen(line) + 1, "%s", line);
+                snprintf(buffer_with_out_commands + position_in_result, size_of_result, "%s", line);
                 //printf("%s\n", buffer_with_out_commands);
                 position_in_result += strlen(line);
                 // printf("line = %s\nstrlen(line) = %lu\n", line, strlen(line));
                 // printf("position_in_result = %lu\n", position_in_result);
                 // printf("buffer_add[0] = %s\n", buffer_with_commands_from_add);
                 //printf("add = %s\n", buffer_with_commands_from_add);
-                snprintf(buffer_with_out_commands + position_in_result, size_of_add + 1, "%s", buffer_with_commands_from_add);
-                position_in_result += size_of_add;
+                // snprintf(buffer_with_out_commands + position_in_result, size_of_add + 1, "%s", buffer_with_commands_from_add);
+                // position_in_result += size_of_add;
+                section_code_starts = true;
             }
             else
             {
@@ -256,7 +283,9 @@ int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t si
         {
             line[index_line] = buffer_with_commands_from_source[pos_for_get_line];
         }
-        snprintf(buffer_with_out_commands + position_in_result, strlen(line) + 1, "%s", line);
+        //printf("line = %s\n", line);
+        //printf("position_in_result = %lu\n", position_in_result);
+        snprintf(buffer_with_out_commands + position_in_result, size_of_result, "%s", line);
         //printf("%s\n", buffer_with_out_commands);
         position_in_result += strlen(line);
         pos_in_source = pos_for_get_line;
@@ -282,7 +311,7 @@ int preprocess_programm(FILE *source, FILE *add, FILE *result)
     {
         return 1;
     }
-    fclose(source);
+    //fclose(source);
     char *buffer_with_commands_from_add = (char *) calloc (size_of_add + 1, sizeof(char));
     if (buffer_with_commands_from_add == NULL)
     {
@@ -299,7 +328,7 @@ int preprocess_programm(FILE *source, FILE *add, FILE *result)
         return 1;
     }
     buffer_with_commands_from_add[size_of_add] = '\0';
-    fclose(add);
+    //fclose(add);
     get_all_macros(buffer_with_commands_from_add, size_of_add, macros, STATIC_LEN_FOR_SMALL_ARRAYS);
     size_t size_of_result = (size_of_add + size_of_source) * 2;
     char *buffer_with_out_commands = (char *) calloc (size_of_result, sizeof(char));
@@ -339,20 +368,20 @@ int preprocess_programm(FILE *source, FILE *add, FILE *result)
     return 0;
 }
 
-int main()
-{
-    const char *source_file_name = "source.txt";
-    const char *file_with_additional = "additional.txt";
-    const char *source_out_file_name = "result.txt";
-    FILE *source = fopen(source_file_name, "rb");
-    FILE *result = fopen(source_out_file_name, "w");
-    FILE *add    = fopen(file_with_additional, "rb");
-    int res = preprocess_programm(source, add, result);
-    if (res != 0)
-    {
-        fprintf(stderr, "Error of preprocessing\n");
-        return 1;
-    }
-    fclose(result);
-    return 0;
-}
+// int main()
+// {
+//     const char *source_file_name = "source.txt";
+//     const char *file_with_additional = "additional.txt";
+//     const char *source_out_file_name = "result.txt";
+//     FILE *source = fopen(source_file_name, "rb");
+//     FILE *result = fopen(source_out_file_name, "w");
+//     FILE *add    = fopen(file_with_additional, "rb");
+//     int res = preprocess_programm(source, add, result);
+//     if (res != 0)
+//     {
+//         fprintf(stderr, "Error of preprocessing\n");
+//         return 1;
+//     }
+//     fclose(result);
+//     return 0;
+// }

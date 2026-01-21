@@ -5,37 +5,15 @@ section .data
 
 section .text
     global _start
-%ifndef ASM_BUILT_IN_FUNCTIONS_IO
-%define ASM_BUILT_IN_FUNCTIONS_IO
 
 
-%macro int_to_double 2
-    cvtsi2sd xmm%1, %2
-%endmacro
 
-%macro double_to_int 2
-    cvtsd2si %1, xmm%2
-%endmacro
 
-%macro floor_double 2
-    cvttsd2si %1, xmm%2
-%endmacro
 
-%macro input_str 2
-    mov rax, 0
-    mov rdi, 0
-    mov rsi, %1
-    mov rdx, %2
-    syscall
-%endmacro
 
-%macro print_str 2
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, %1
-    mov rdx, %2
-    syscall
-%endmacro
+
+
+
 
 input:
     push rbp
@@ -54,6 +32,7 @@ input:
     cmp  rax, 0
     je   .int_number
     jmp  .double_number
+
 _start:
         mov rax, 1
     mov rdi, 1

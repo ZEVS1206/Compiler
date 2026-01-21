@@ -47,3 +47,4 @@ input:
     cmp  rax, 0
     je   .int_number
     jmp  .double_number
+%endif

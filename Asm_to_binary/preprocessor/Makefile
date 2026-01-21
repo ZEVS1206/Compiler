@@ -6,7 +6,7 @@ LAUNCH = start
 .PHONY: all run clean
 all: $(LAUNCH)
 
-$(LAUNCH): main.cpp
+$(LAUNCH): preprocessor.cpp
 	$(CC) $(CFLAGS) $^ -o $@
 
 run:

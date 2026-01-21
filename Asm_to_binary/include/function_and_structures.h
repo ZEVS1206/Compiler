@@ -16,7 +16,8 @@ enum Errors_of_binary
     ERROR_OF_CREATING_BUFFER_OF_CMDS = 4,
     ERROR_OF_CONSTRUCTOR             = 5,
     ERROR_OF_DESTRUCTOR              = 6,
-    ERROR_OF_READING_CMDS            = 7
+    ERROR_OF_READING_CMDS            = 7,
+    ERROR_OF_PREPROCESS_SOURCE_FILE  = 8
 };
 
 struct CMD

@@ -5,6 +5,7 @@
 #include <elf.h>
 
 #include "function_and_structures.h"
+#include "prepocessing_header.h"
 
 #define MAX_LEN_FOR_STATIC_ARRAYS 100
 
@@ -33,7 +34,6 @@
 //                                  };
 // const size_t size_of_cmd_to_byte = sizeof(cmd_to_byte) / sizeof(struct CMD);
 
-// static void dec_to_bytes(const char *dec_number, uint8_t **result);
 static size_t align_up(size_t offset, size_t base);//Need for align_up offset in memory
 static unsigned add_string_to_buffer(char *buffer, size_t *len_of_buffer, const char *string);//Function for adding string to buffer
 static Errors_of_binary create_binary_file(struct Binary_file *binary_struct);
@@ -54,6 +54,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
 static void parse_instruction_from_data(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands);
 static void add_relocation(struct Binary_file *binary_struct, size_t offset_in_text, const char *symbol_name, uint32_t type, int64_t additional_offset);
 static size_t next_power_of_two(size_t n);
+static FILE * preprocess_programm_from_source(FILE *file_pointer);
 
 
 static char * skip_spaces(char *buffer, char *end_pointer)
@@ -127,31 +128,29 @@ static unsigned add_string_to_buffer(char *buffer, size_t *len_of_buffer, const 
 }
 
 
-// static void dec_to_bytes(const char *dec_number, uint8_t **result)
-// {
-//     if (dec_number == NULL)
-//     {
-//         fprintf(stderr, "Error! Null dec_number was transfered to function dec_to_bytes\n");
-//         abort();
-//     }
-//     int number = atoi(dec_number);
-//     int position = 0;
-//     uint8_t converted_number[MAX_LEN_FOR_STATIC_ARRAYS] = {};
-//     int ost = 0;
-//     while (number > 0)
-//     {
-//         ost = number % 16;
-//         converted_number[position++] = buffer_hex[ost];
-//         number /= 16;
-//     }
-//     position--;
-//     while (position >= 0)
-//     {
-//         (*result)[0] = converted_number[position--];
-//         (*result)++;
-//     }
-//     return;
-// }
+static FILE * preprocess_programm_from_source(FILE *file_pointer)
+{
+    if (file_pointer == NULL)
+    {
+        fprintf(stderr, "ERROR OF PRESPROCESSING\n");
+        abort();
+    }
+    FILE *preprocessed_file_pointer = fopen("build/preprocessed_file.txt", "wb");
+    if (preprocessed_file_pointer == NULL)
+    {
+        fprintf(stderr, "ERROR OF PRESPROCESSING\n");
+        abort();
+    }
+    FILE *additional_file = fopen("include/test_file_for_add.inc", "rb");
+    int code = preprocess_programm(file_pointer, additional_file, preprocessed_file_pointer);
+    if (code)
+    {
+        fprintf(stderr, "ERROR OF PRESPROCESSING\n");
+        abort();
+    }
+    fclose(additional_file);
+    return preprocessed_file_pointer;
+}
 
 Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
 {
@@ -164,7 +163,13 @@ Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
     {
         return ERROR_OF_CREATING_OUT_FILE;
     }
-
+    FILE *file_for_analyze = preprocess_programm_from_source(file_pointer);
+    if (file_for_analyze == NULL)
+    {
+        return ERROR_OF_PREPROCESS_SOURCE_FILE;
+    }
+    fclose(file_for_analyze);
+    file_for_analyze = fopen("build/preprocessed_file.txt", "rb");
     // uint8_t *result = (uint8_t *) calloc (50, sizeof(uint8_t));
     // if (result == NULL)
     // {
@@ -179,7 +184,7 @@ Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
     // }
     // printf("\n");
     struct Binary_file binary_struct = {0};
-    Errors_of_binary error = create_bin_data_for_binary_file(&binary_struct, file_pointer);
+    Errors_of_binary error = create_bin_data_for_binary_file(&binary_struct, file_for_analyze);
     if (error != NO_BINARY_ERRORS)
     {
         return error;
@@ -219,6 +224,7 @@ Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
     free(binary_struct.data_labels);
     free(binary_struct.text_labels);
     fclose(file_out_pointer);
+    fclose(file_for_analyze);
     return NO_BINARY_ERRORS;
 }
 

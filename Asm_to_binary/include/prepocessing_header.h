@@ -14,6 +14,6 @@ struct Macro_type
     size_t size_of_body_of_macro;
 };
 
-
+int preprocess_programm(FILE *source, FILE *add, FILE *result);
 
 #endif
