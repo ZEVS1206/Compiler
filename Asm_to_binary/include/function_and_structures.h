@@ -74,7 +74,21 @@ enum Opcode
     OP_XOR_REG_REG   = 5,
     OP_XOR_REG_IMM   = 6,
     OP_SYSCALL       = 7,
-    OP_MOV_REG_LABEL = 8
+    OP_MOV_REG_LABEL = 8,
+    OP_PUSH_REG      = 9,
+    OP_POP_TO_REG    = 10
+};
+
+enum Jmp_cmds
+{
+    UNKNOWN_JMP_CMD = 0,
+    JMP             = 1,
+    JG              = 2,//>
+    JGE             = 3,//>=
+    JL              = 4,//<
+    JLE             = 5,//<=
+    JE              = 6,//==
+    JNE             = 7 //!=
 };
 
 enum Register
@@ -87,7 +101,15 @@ enum Register
     RBP              = 5,
     RSI              = 6,
     RDI              = 7,
-    UNKNOWN_REGISTER = 8
+    R8               = 8,
+    R9               = 9,
+    R10              = 10,
+    R11              = 11,
+    R12              = 12,
+    R13              = 13,
+    R14              = 14,
+    R15              = 15,
+    UNKNOWN_REGISTER = 16
 };
 
 enum Sections

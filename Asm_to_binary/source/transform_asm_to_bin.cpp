@@ -170,19 +170,6 @@ Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
     }
     fclose(file_for_analyze);
     file_for_analyze = fopen("build/preprocessed_file.txt", "rb");
-    // uint8_t *result = (uint8_t *) calloc (50, sizeof(uint8_t));
-    // if (result == NULL)
-    // {
-    //     return ERROR_OF_OPERATING_CMD;
-    // }
-    // uint8_t *old_pointer = &(result[0]);
-    // dec_to_bytes("255", &result);
-    // result = old_pointer;
-    // for (size_t i = 0; i < 3; i++)
-    // {
-    //     printf("%x", result[i]);
-    // }
-    // printf("\n");
     struct Binary_file binary_struct = {0};
     Errors_of_binary error = create_bin_data_for_binary_file(&binary_struct, file_for_analyze);
     if (error != NO_BINARY_ERRORS)
@@ -547,6 +534,42 @@ static Register get_register(const char *register_name)
     {
         return RDI;
     }
+    if (strcasecmp(register_name, "rbp") == 0)
+    {
+        return RBP;
+    }
+    if (strcasecmp(register_name, "r8") == 0)
+    {
+        return R8;
+    }
+    if (strcasecmp(register_name, "r9") == 0)
+    {
+        return R9;
+    }
+    if (strcasecmp(register_name, "r10") == 0)
+    {
+        return R10;
+    }
+    if (strcasecmp(register_name, "r11") == 0)
+    {
+        return R11;
+    }
+    if (strcasecmp(register_name, "r12") == 0)
+    {
+        return R12;
+    }
+    if (strcasecmp(register_name, "r13") == 0)
+    {
+        return R13;
+    }
+    if (strcasecmp(register_name, "r14") == 0)
+    {
+        return R14;
+    }
+    if (strcasecmp(register_name, "r15") == 0)
+    {
+        return R15;
+    }
 
     // if (strcasecmp(register_name, "eax") == 0)
     // {
@@ -756,6 +779,7 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
         start = skip_spaces(start, end_pointer);
         char label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
         char new_label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+        char *old_start = start;
         if (sscanf(start, "%s", label_name) == 1)
         {
             //printf("label_name = %s\n", label_name);
@@ -828,6 +852,7 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
                     char operation[MAX_LEN_FOR_STATIC_ARRAYS] = "";
                     if (sscanf(start, "%s", operation) == 1)
                     {
+                        //printf("operation = %s\n", operation);
                         char label_in_expression[MAX_LEN_FOR_STATIC_ARRAYS] = "";
                         if (strcasecmp(operation, "equ") == 0)
                         {
@@ -849,14 +874,16 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
                         }
                         else
                         {
-                            start -= strlen(operation);
+                            start = old_start;
                         }
                     }
                 }
             }
         }
         struct Instruction instruction = {};
+        instruction.opcode = UNKNOWN_OPCODE;
         instruction.section = section;
+        //printf("start = %s\n\n", start);
         start = skip_spaces(start, end_pointer);
         if (section == SECTION_TEXT)
         {
@@ -1084,11 +1111,39 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
         //}
     }
+    else if (strcasecmp(operation, "push") == 0)
+    {
+        char param_1[8] = "";
+        position = skip_spaces(position, end_pointer);
+        int res = sscanf(position, "%s", param_1);
+        if (res != 1)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing push\n");
+            abort();
+        }
+        //printf("param_1 = %s\nlen_of_param = %lu\n", param_1, strlen(param_1));
+        instruction->opcode = OP_PUSH_REG;
+        instruction->register_source = get_register(param_1);
+    }
+    else if (strcasecmp(operation, "pop") == 0)
+    {
+        char param_1[8] = "";
+        position = skip_spaces(position, end_pointer);
+        int res = sscanf(position, "%s", param_1);
+        if (res != 1)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing push\n");
+            abort();
+        }
+        instruction->opcode = OP_POP_TO_REG;
+        instruction->register_dest = get_register(param_1);
+    }
     else if (strcasecmp(operation, "syscall") == 0)
     {
         //printf("HEREEE\n");
         instruction->opcode = OP_SYSCALL;
     }
+    //printf("operation = %s\nopcode = %d\n", operation, instruction->opcode);
     instruction->pc = *pc;
     return;
 }
@@ -1284,6 +1339,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
     for (size_t index = 0; index < (commands->size_of_instructions); index++)
     {
         Instruction *instruction = &((commands->instructions)[index]);
+        //printf("index = %lu\nopcode = %d\n",index, instruction->opcode);
         if (instruction->section != SECTION_TEXT)
         {
             continue;
@@ -1291,7 +1347,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         uint8_t *pointer_in_buffer_cmds = (binary_struct->buffer_of_text_commands) + buffer_of_commands_size;
         if (instruction->opcode == OP_MOV_REG_IMM)
         {
-            printf("imm = %lu\n", instruction->imm);
+            //printf("imm = %lu\n", instruction->imm);
             //Prefix REX
             *pointer_in_buffer_cmds = 0x48;
             pointer_in_buffer_cmds++;
@@ -1348,6 +1404,21 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             pointer_in_buffer_cmds++;
             buffer_of_commands_size += 1 + 1 + 1;
         }
+        else if (instruction->opcode == OP_PUSH_REG)
+        {
+            //printf("register = %d\n", instruction->register_source);
+            *pointer_in_buffer_cmds = 0x50 + (instruction->register_source & 0x7);
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1;
+        }
+        else if (instruction->opcode == OP_POP_TO_REG)
+        {
+            //printf("index = %lu\n", index);
+            //printf("register = %d\n", instruction->register_dest);
+            *pointer_in_buffer_cmds = 0x58 + (instruction->register_dest & 0x7);
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1;
+        }
         else if (instruction->opcode == OP_SYSCALL)
         {
             //printf("Here\n");
@@ -1395,7 +1466,7 @@ static void encode_data_instructions(struct Data_CMDS *commands, struct Binary_f
         size_t size_of_operand = (size_t)(instruction->initial_instruction);
         if ((instruction->operands).type == TYPE_NUMBER)
         {
-            printf("number\n");
+            //printf("number\n");
             for (size_t id = 0; id < size_of_operand; id++)
             {
                 *pointer_in_buffer_cmds = (uint8_t) (((instruction->operands).numeric_operand >> (8 * id)) & 0xFF);

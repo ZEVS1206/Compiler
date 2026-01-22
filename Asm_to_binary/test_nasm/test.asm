@@ -6,8 +6,9 @@ section .data
 section .text
     global _start
 _start:
-    print_str msg, len
-
+    mov rbx, 1
+    push rbp
+    pop rbp
     mov rax, 60
     xor rdi, rdi
     syscall
