@@ -1,4 +1,5 @@
 ;1 _start
+%include "additional.txt"
 section .data
     msg: db 'HELLO, World', 10
     len equ $ - msg

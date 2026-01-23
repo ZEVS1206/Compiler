@@ -50,7 +50,9 @@ static void encode_data_instructions(struct Data_CMDS *commands, struct Binary_f
 static bool check_if_function(struct Binary_file *binary_struct, const char *label_name);
 static bool is_str_digit(const char *str);
 static char * skip_spaces(char *buffer, char *end_pointer);
+static void parse_section_text(struct Binary_file *binary_struct, struct Data_CMDS *commands, FILE *file_pointer_with_commands, size_t size_of_file);
 static void parse_instruction_from_text(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands);
+static void parse_section_data(struct Binary_file *binary_struct, struct Data_CMDS *commands, FILE *file_pointer_with_commands, size_t size_of_file);
 static void parse_instruction_from_data(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands);
 static void add_relocation(struct Binary_file *binary_struct, size_t offset_in_text, const char *symbol_name, uint32_t type, int64_t additional_offset);
 static size_t next_power_of_two(size_t n);
@@ -141,14 +143,12 @@ static FILE * preprocess_programm_from_source(FILE *file_pointer)
         fprintf(stderr, "ERROR OF PRESPROCESSING\n");
         abort();
     }
-    FILE *additional_file = fopen("include/test_file_for_add.inc", "rb");
-    int code = preprocess_programm(file_pointer, additional_file, preprocessed_file_pointer);
+    int code = preprocess_programm(file_pointer, preprocessed_file_pointer);
     if (code)
     {
         fprintf(stderr, "ERROR OF PRESPROCESSING\n");
         abort();
     }
-    fclose(additional_file);
     return preprocessed_file_pointer;
 }
 
@@ -718,6 +718,184 @@ static struct Label get_label(struct Data_CMDS *commands, const char *label_name
     return {};
 }
 
+static void parse_section_text(struct Binary_file *binary_struct, struct Data_CMDS *commands, FILE *file_pointer_with_commands, size_t size_of_file)
+{
+    if (binary_struct == NULL || commands == NULL || file_pointer_with_commands == NULL)
+    {
+        fprintf(stderr, "Error! Error of parsing section text\n");
+        abort();
+    }
+    int32_t text_pc = 0;
+    char str_for_input[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+    char *end_pointer = (str_for_input + MAX_LEN_FOR_STATIC_ARRAYS);
+    Sections section = SECTION_TEXT;
+    int index_of_last_function = -1;
+    while(fgets(str_for_input, sizeof(str_for_input), file_pointer_with_commands))
+    {
+        struct Instruction instruction = {};
+        char *start = str_for_input;
+        start = skip_spaces(start, end_pointer);
+        if (*start == '\0' || *start == ';')
+        {
+            continue;
+        }
+        start = skip_spaces(start, end_pointer);
+        char label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+        char new_label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+        char *old_start = start;
+        if (sscanf(start, "%s", label_name) == 1)
+        {
+            size_t len_of_label = strlen(label_name);
+            start += len_of_label;
+            bool is_label = false;
+            for (size_t id = 0; id < len_of_label; id++)
+            {
+                if (label_name[id] == ':')
+                {
+                    is_label = true;
+                    break;
+                }
+            }
+            snprintf(new_label_name, len_of_label, "%s", label_name);
+            if (is_label)
+            {
+                bool result = check_if_function(binary_struct, new_label_name);
+                if (!result)
+                {
+                    add_label(commands, new_label_name, text_pc, section, 0, LABEL_FOR_JMP, 0);
+                    continue;
+                }
+                if (index_of_last_function != -1)
+                {
+                    (binary_struct->all_functions)[index_of_last_function].offset_in_text = text_pc;
+                }
+                for (size_t index = 0; index < (binary_struct->count_of_functions); index++)
+                {
+                    if (strcasecmp((binary_struct->all_functions)[index].name, new_label_name) == 0)
+                    {
+                        index_of_last_function = index;
+                        break;
+                    }
+                }   
+            }
+            else
+            {
+                start = old_start;
+            }
+            instruction.opcode = UNKNOWN_OPCODE;
+            instruction.section = section;
+            //printf("start = %s\n\n", start);
+            start = skip_spaces(start, end_pointer);
+            parse_instruction_from_text(start, &instruction, end_pointer, &text_pc, commands);
+        }
+        else
+        {
+            fprintf(stderr, "Error! Error of processing string at section .text\n");
+            abort();
+        }
+        commands->instructions[commands->size_of_instructions++] = instruction;
+        if (commands->size_of_instructions >= size_of_file)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Not enough memory in \x1b[33mcommands.instructions\x1b[0m\n");
+            abort();
+        }
+    }
+    (binary_struct->all_functions)[index_of_last_function].offset_in_text = text_pc;
+    return;
+}
+
+static void parse_section_data(struct Binary_file *binary_struct, struct Data_CMDS *commands, FILE *file_pointer_with_commands, size_t size_of_file)
+{
+    if (binary_struct == NULL || commands == NULL || file_pointer_with_commands == NULL)
+    {
+        fprintf(stderr, "Error! Error of parsing section data\n");
+        abort();
+    }
+    int32_t data_pc = 0;
+    char str_for_input[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+    char *end_pointer = (str_for_input + MAX_LEN_FOR_STATIC_ARRAYS);
+    Sections section = SECTION_DATA;
+    while(fgets(str_for_input, sizeof(str_for_input), file_pointer_with_commands))
+    {
+        struct Instruction instruction = {};
+        char *start = str_for_input;
+        start = skip_spaces(start, end_pointer);
+        if (*start == '\0' || *start == ';')
+        {
+            continue;
+        }
+        if (strcasecmp(str_for_input, "section .data\n") == 0)
+        {
+            continue;
+        }
+        if (strcasecmp(str_for_input, "section .text\n") == 0)
+        {
+            break;
+        }
+        start = skip_spaces(start, end_pointer);
+        char label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+        if (sscanf(start, "%s", label_name) == 1)
+        {
+            size_t len_of_label = strlen(label_name);
+            start += len_of_label;
+            char operation[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+            char *old_start = start;
+            if (sscanf(start, "%s", operation) ==  1)
+            {
+                if (strcasecmp(operation, "equ") == 0)
+                {
+                    char label_in_expression[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                    start += strlen(operation) + 1;
+                    start = skip_spaces(start, end_pointer);
+                    sscanf(start, "%s", label_in_expression);
+                    if (strcasecmp(label_in_expression, "$") == 0)
+                    {
+                        start = skip_spaces(start, end_pointer);
+                        start++;
+                        start = skip_spaces(start, end_pointer);
+                        start++;
+                        sscanf(start, "%s", label_in_expression);
+                        struct Label label = get_label(commands, label_in_expression, SECTION_DATA);
+                        //printf("label_data_in_equ = %lu\n", label.imm_data);
+                        add_label(commands, label_name, data_pc, SECTION_DATA, label.size_of_data, CONSTANT_LABEL, label.imm_data);
+                        continue;
+                    }
+                }
+                else
+                {
+                    start = old_start;
+                }
+            }
+            else
+            {
+                fprintf(stderr, "Error! Error of processing string at section .data\n");
+                abort();
+            }
+            add_label(commands, label_name, data_pc, section, 0, LABEL_FOR_JMP, 0);
+            instruction.opcode = UNKNOWN_OPCODE;
+            instruction.section = section;
+            //printf("start = %s\n\n", start);
+            start = skip_spaces(start, end_pointer);
+            strcpy((instruction.label).label_name, label_name);
+            parse_instruction_from_data(start, &instruction, end_pointer, &data_pc, commands);
+        }
+        else
+        {
+            fprintf(stderr, "Error! Error of processing string at section .data\n");
+            abort();
+        }
+        commands->instructions[commands->size_of_instructions++] = instruction;
+        if (commands->size_of_instructions >= size_of_file)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Not enough memory in \x1b[33mcommands.instructions\x1b[0m\n");
+            abort();
+        }
+
+    }
+    return;
+}
+
+
 
 
 static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *binary_struct, FILE *file_pointer_with_commands)
@@ -727,10 +905,8 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
         return ERROR_OF_CREATING_BUFFER_OF_CMDS;
     }
     size_t size_of_file = get_size_of_file(file_pointer_with_commands);
-    char str_for_input[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-    char *end_pointer = (str_for_input + MAX_LEN_FOR_STATIC_ARRAYS);
-    int32_t text_pc = 0;//programm counter in text
-    int32_t data_pc = 0;
+    // int32_t text_pc = 0;//programm counter in text
+    // int32_t data_pc = 0;
     struct Data_CMDS commands = {};
     commands.instructions = (struct Instruction *) calloc (size_of_file, sizeof(struct Instruction));
     if (commands.instructions == NULL)
@@ -751,240 +927,8 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
     commands.size_of_labels_text = 0;
     commands.size_of_labels_data = 0;
     get_all_functions(binary_struct, file_pointer_with_commands);
-    int index_of_last_function = -1;
-    Sections section = SECTION_DATA;
-    while(fgets(str_for_input, sizeof(str_for_input), file_pointer_with_commands))
-    {
-        //printf("str for input = %s\n", str_for_input);
-        char *start = str_for_input;
-        start = skip_spaces(start, end_pointer);
-        if (*start == '\0' || *start == ';')
-        {
-            continue;
-        }
-        // if (section == SECTION_DATA)
-        // {
-        //     printf("data\n");
-        //     printf("str for input = %s\n", str_for_input);
-        // }
-        if (strcasecmp(str_for_input, "section .text\n") == 0)
-        {
-            section = SECTION_TEXT;
-            continue;
-        }
-        else if (strcasecmp(str_for_input, "section .data\n") == 0)
-        {
-            continue;
-        }
-        start = skip_spaces(start, end_pointer);
-        char label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-        char new_label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-        char *old_start = start;
-        if (sscanf(start, "%s", label_name) == 1)
-        {
-            //printf("label_name = %s\n", label_name);
-            size_t len = strlen(label_name);
-            bool is_label = false;
-            //printf("len = %lu\n", len);
-            start += len;
-            for (size_t id = 0; id < len; id++)
-            {
-                if (label_name[id] == ':')
-                {
-                    is_label = true;
-                    break;
-                }
-            }
-            snprintf(new_label_name, len, "%s", label_name);
-            //printf("new_label_name = %s\n", new_label_name);
-            if (is_label)
-            {
-                bool result = check_if_function(binary_struct, new_label_name);
-                if (!result)
-                {
-                    int32_t pc = 0;
-                    if (section == SECTION_TEXT)
-                    {
-                        pc = text_pc;
-                    }
-                    else
-                    {
-                        pc = data_pc;
-                    }
-                    add_label(&commands, new_label_name, pc, section, 0, LABEL_FOR_JMP, 0);
-                    if (section != SECTION_DATA)
-                    {
-                        continue;
-                    }
-                }
-                if (index_of_last_function == -1)
-                {
-                    for (size_t index = 0; index < (binary_struct->count_of_functions); index++)
-                    {
-                        if (strcasecmp((binary_struct->all_functions)[index].name, new_label_name) == 0)
-                        {
-                            index_of_last_function = index;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    (binary_struct->all_functions)[index_of_last_function].offset_in_text = text_pc;
-                    for (size_t index = 0; index < (binary_struct->count_of_functions); index++)
-                    {
-                        if (strcasecmp((binary_struct->all_functions)[index].name, new_label_name) == 0)
-                        {
-                            index_of_last_function = index;
-                            break;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (strcasecmp(label_name, "syscall") == 0)
-                {
-                    start -= strlen(label_name);
-                }
-                else
-                {
-                    char operation[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-                    if (sscanf(start, "%s", operation) == 1)
-                    {
-                        //printf("operation = %s\n", operation);
-                        char label_in_expression[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-                        if (strcasecmp(operation, "equ") == 0)
-                        {
-                            start += strlen(operation) + 1;
-                            start = skip_spaces(start, end_pointer);
-                            sscanf(start, "%s", label_in_expression);
-                            if (strcasecmp(label_in_expression, "$") == 0)
-                            {
-                                start = skip_spaces(start, end_pointer);
-                                start++;
-                                start = skip_spaces(start, end_pointer);
-                                start++;
-                                sscanf(start, "%s", label_in_expression);
-                                struct Label label = get_label(&commands, label_in_expression, SECTION_DATA);
-                                //printf("label_data_in_equ = %lu\n", label.imm_data);
-                                add_label(&commands, label_name, data_pc, SECTION_DATA, label.size_of_data, CONSTANT_LABEL, label.imm_data);
-                            }
-                            continue;
-                        }
-                        else
-                        {
-                            start = old_start;
-                        }
-                    }
-                }
-            }
-        }
-        struct Instruction instruction = {};
-        instruction.opcode = UNKNOWN_OPCODE;
-        instruction.section = section;
-        //printf("start = %s\n\n", start);
-        start = skip_spaces(start, end_pointer);
-        if (section == SECTION_TEXT)
-        {
-            parse_instruction_from_text(start, &instruction, end_pointer, &text_pc, &commands);
-        }
-        else
-        {
-            strcpy((instruction.label).label_name, new_label_name);
-            parse_instruction_from_data(start, &instruction, end_pointer, &data_pc, &commands);
-        }
-        // char operation[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-        // if (sscanf(start, "%s", operation) != 1)
-        // {
-        //     continue;
-        // }
-        // start += strlen(operation);
-        // if (strcasecmp(operation, "mov") == 0)
-        // {
-            
-        //     char param_1[8] = "";
-        //     char param_2[8] = "";
-        //     start = skip_spaces(start, end_pointer);
-        //     int res = sscanf(start, "%7[^,]", param_1);
-        //     start += strlen(param_1);
-        //     start += 2;
-        //     res += sscanf(start, "%s", param_2);
-        //     //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
-        //     if (res != 2)
-        //     {
-        //         fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
-        //         abort();
-        //     }
-        //     bool is_digit = is_str_digit(param_2);
-        //     int64_t imm = 0;
-        //     if (is_digit)
-        //     {
-        //         char *end = NULL;
-        //         imm = strtol(param_2, &end, 10);
-        //     }
-        //     instruction.opcode = OP_MOV_REG_REG;
-        //     instruction.register_dest = get_register(param_1);
-        //     if (is_digit)
-        //     {
-        //         instruction.opcode = OP_MOV_REG_IMM;
-        //         instruction.imm = imm;
-        //         pc += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
-        //     }
-        //     else
-        //     {
-        //         instruction.register_source = get_register(param_2);
-        //         pc += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
-        //     }
-        // }
-        // else if (strcasecmp(operation, "xor") == 0)
-        // {
-        //     char param_1[8] = "";
-        //     char param_2[8] = "";
-        //     start = skip_spaces(start, end_pointer);
-        //     int res = sscanf(start, "%7[^,]", param_1);
-        //     start += strlen(param_1);
-        //     start += 2;
-        //     res += sscanf(start, "%s", param_2);
-        //     //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
-        //     if (res != 2)
-        //     {
-        //         fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
-        //         abort();
-        //     }
-        //     // bool is_digit = is_str_digit(param_2);
-        //     // int64_t imm = 0;
-        //     // if (is_digit)
-        //     // {
-        //     //     char *end = NULL;
-        //     //     imm = strtol(param_2, &end, 10);
-        //     // }
-        //     instruction.opcode = OP_XOR_REG_REG;
-        //     instruction.register_dest = get_register(param_1);
-        //     // if (is_digit)
-        //     // {
-        //     //     instruction.opcode = OP_XOR_REG_IMM;
-        //     //     instruction.imm = imm;
-        //     //     pc += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
-        //     // }
-        //     // else
-        //     // {
-        //     instruction.register_source = get_register(param_2);
-        //     pc += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
-        //     //}
-        // }
-        // else if (strcasecmp(operation, "syscall") == 0)
-        // {
-        //     instruction.opcode = OP_SYSCALL;
-        // }
-        commands.instructions[commands.size_of_instructions++] = instruction;
-        if (commands.size_of_instructions >= size_of_file)
-        {
-            fprintf(stderr, "\x1b[31mError!\x1b[0m Not enough memory in \x1b[33mcommands.instructions\x1b[0m\n");
-            abort();
-        }
-    }
-    (binary_struct->all_functions)[index_of_last_function].offset_in_text = text_pc;
+    parse_section_data(binary_struct, &commands, file_pointer_with_commands, size_of_file);
+    parse_section_text(binary_struct, &commands, file_pointer_with_commands, size_of_file);
     binary_struct->buffer_of_text_commands = (uint8_t *) calloc (size_of_file, sizeof(uint8_t));
     if (binary_struct->buffer_of_text_commands == NULL)
     {

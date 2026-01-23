@@ -1,14 +1,13 @@
 ;1 _start
+%include "include/test_file_for_add.inc"
 section .data
-    msg: db 'HELLO, World', 10
+    msg db 'HELLO, World', 10
     len equ $ - msg
 
 section .text
     global _start
 _start:
-    mov rbx, 1
-    push rbp
-    pop rbp
+    print_str msg, len
     mov rax, 60
     xor rdi, rdi
     syscall

@@ -293,14 +293,14 @@ static int parse_source_and_add_files(char *buffer_with_commands_from_source, si
     return 0;
 }
 
-int preprocess_programm(FILE *source, FILE *add, FILE *result)
+int preprocess_programm(FILE *source, FILE *result)
 {
-    if (source == NULL || add == NULL || result == NULL)
+    if (source == NULL || result == NULL)
     {
         return 1;
     }
     size_t size_of_source = get_size_of_file(source);
-    size_t size_of_add    = get_size_of_file(add);
+    //size_t size_of_add    = get_size_of_file(add);
     char *buffer_with_commands_from_source = (char *) calloc (size_of_source, sizeof(char));
     if (buffer_with_commands_from_source == NULL)
     {
@@ -311,6 +311,37 @@ int preprocess_programm(FILE *source, FILE *add, FILE *result)
     {
         return 1;
     }
+    size_t id_in_source = 0;
+    while (id_in_source < size_of_source && buffer_with_commands_from_source[id_in_source] != '%')
+    {
+        id_in_source++;
+    }
+    if (id_in_source >= size_of_source)
+    {
+        return 1;
+    }
+    while (id_in_source < size_of_source && buffer_with_commands_from_source[id_in_source] != '\"')
+    {
+        id_in_source++;
+    }
+    if (id_in_source >= size_of_source)
+    {
+        return 1;
+    }
+    id_in_source++;
+    char str_for_address_of_add_file[STATIC_LEN_FOR_MIDDLE_ARRAYS] = "";
+    size_t pos = 0;
+    while (id_in_source < size_of_source && pos < STATIC_LEN_FOR_MIDDLE_ARRAYS && buffer_with_commands_from_source[id_in_source] != '\"')
+    {
+        str_for_address_of_add_file[pos++] = buffer_with_commands_from_source[id_in_source++];
+    }  
+    str_for_address_of_add_file[pos] = '\0';
+    FILE *add = fopen(str_for_address_of_add_file, "rb");
+    if (add == NULL)
+    {
+        return 1;
+    }
+    size_t size_of_add    = get_size_of_file(add);
     //fclose(source);
     char *buffer_with_commands_from_add = (char *) calloc (size_of_add + 1, sizeof(char));
     if (buffer_with_commands_from_add == NULL)
@@ -328,7 +359,7 @@ int preprocess_programm(FILE *source, FILE *add, FILE *result)
         return 1;
     }
     buffer_with_commands_from_add[size_of_add] = '\0';
-    //fclose(add);
+    fclose(add);
     get_all_macros(buffer_with_commands_from_add, size_of_add, macros, STATIC_LEN_FOR_SMALL_ARRAYS);
     size_t size_of_result = (size_of_add + size_of_source) * 2;
     char *buffer_with_out_commands = (char *) calloc (size_of_result, sizeof(char));
@@ -371,12 +402,10 @@ int preprocess_programm(FILE *source, FILE *add, FILE *result)
 // int main()
 // {
 //     const char *source_file_name = "source.txt";
-//     const char *file_with_additional = "additional.txt";
 //     const char *source_out_file_name = "result.txt";
 //     FILE *source = fopen(source_file_name, "rb");
 //     FILE *result = fopen(source_out_file_name, "w");
-//     FILE *add    = fopen(file_with_additional, "rb");
-//     int res = preprocess_programm(source, add, result);
+//     int res = preprocess_programm(source, result);
 //     if (res != 0)
 //     {
 //         fprintf(stderr, "Error of preprocessing\n");
