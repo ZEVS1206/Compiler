@@ -138,10 +138,11 @@ enum Type_of_operand
 struct Instruction_operand
 {
     Type_of_operand type;
+    size_t len_of_string_operand;
     union
     {
         char symbol_operand;
-        char string_operand[100];
+        uint8_t string_operand[100];
         int64_t numeric_operand;
     };  
 };

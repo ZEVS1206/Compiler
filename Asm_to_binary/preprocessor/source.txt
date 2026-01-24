@@ -8,6 +8,7 @@ section .text
     global _start
 _start:
     print_str msg, len
+    print_str msg, len
 
     mov rax, 60
     xor rdi, rdi

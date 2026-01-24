@@ -104,6 +104,7 @@ static void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_typ
     //     printf("%s\n", macros[id].body_of_macro);
     //     //printf("count_of_arguments = %lu\n", macros[id].count_of_arguments);
     // }
+    //printf("size_of_macros = %lu\n", size_of_macros);
     return;
 }
 
@@ -187,7 +188,10 @@ static int parse_source_and_add_files(char *buffer_with_commands_from_source, si
                 {
                     pos_for_get_line += 2;
                 }
-                (macros[index_in_macros]).arguments[index_in_arguments] = (char *) calloc (index_line + 1, sizeof(char));
+                if (!(macros[index_in_macros]).arguments[index_in_arguments])
+                {
+                    (macros[index_in_macros]).arguments[index_in_arguments] = (char *) calloc (index_line + 1, sizeof(char));
+                }
                 if (!(macros[index_in_macros]).arguments[index_in_arguments])
                 {
                     return 1;

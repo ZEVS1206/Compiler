@@ -285,7 +285,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         {
             if (strcasecmp((binary_struct->data_labels)[id].label_name, (binary_struct->relocation_table)[index_in_rel_table].symbol_name) == 0)
             {
-                break;
+                (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
             }
         }
         syms[index].st_name = (binary_struct->data_labels)[id].position_in_strtab;
@@ -305,7 +305,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         {
             continue;
         }
-        (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
+        //(binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
     }
     // syms[3].st_name = string_name_func;
     // syms[3].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
@@ -333,7 +333,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     // .rela.text
     offset = align_up(offset, 8);
     size_t rela_text_offset = offset;
-    offset += binary_struct->size_of_relocation_table;
+    offset += binary_struct->size_of_relocation_table * sizeof(Elf64_Rela);
     // .shstrtab
     size_t base = next_power_of_two(binary_struct->len_section_header_str_table);
     offset = align_up(offset, base); 
@@ -668,6 +668,7 @@ static int find_label_and_change_it(struct Data_CMDS *commands, const char *labe
                 (commands->labels_text)[index].type = type;
                 (commands->labels_text)[index].size_of_data = size_of_data;
                 (commands->labels_text)[index].imm_data = imm_data;
+                //(commands->labels_text)[index].pc += size_of_data;
                 return ((commands->labels_text)[index].pc);
             }
         }
@@ -681,6 +682,7 @@ static int find_label_and_change_it(struct Data_CMDS *commands, const char *labe
                 (commands->labels_data)[index].type = type;
                 (commands->labels_data)[index].size_of_data = size_of_data;
                 (commands->labels_data)[index].imm_data = imm_data;
+                //(commands->labels_data)[index].pc += size_of_data;
                 return ((commands->labels_data)[index].pc);
             }
         }
@@ -787,6 +789,7 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
             //printf("start = %s\n\n", start);
             start = skip_spaces(start, end_pointer);
             parse_instruction_from_text(start, &instruction, end_pointer, &text_pc, commands);
+            //printf("text_pc = %u\n", text_pc);
         }
         else
         {
@@ -858,6 +861,7 @@ static void parse_section_data(struct Binary_file *binary_struct, struct Data_CM
                         struct Label label = get_label(commands, label_in_expression, SECTION_DATA);
                         //printf("label_data_in_equ = %lu\n", label.imm_data);
                         add_label(commands, label_name, data_pc, SECTION_DATA, label.size_of_data, CONSTANT_LABEL, label.imm_data);
+                        //data_pc += label.imm_data;
                         continue;
                     }
                 }
@@ -871,19 +875,27 @@ static void parse_section_data(struct Binary_file *binary_struct, struct Data_CM
                 fprintf(stderr, "Error! Error of processing string at section .data\n");
                 abort();
             }
+            //printf("label_name = %s\n", label_name);
             add_label(commands, label_name, data_pc, section, 0, LABEL_FOR_JMP, 0);
+
+            // for (size_t id = 0; id < commands->size_of_labels_data; ++id)
+            // {
+            //     printf("label_name = %s\n", (commands->labels_data)[id].label_name);
+            // }
             instruction.opcode = UNKNOWN_OPCODE;
             instruction.section = section;
             //printf("start = %s\n\n", start);
             start = skip_spaces(start, end_pointer);
             strcpy((instruction.label).label_name, label_name);
             parse_instruction_from_data(start, &instruction, end_pointer, &data_pc, commands);
+            //printf("data_pc = %u\n", data_pc);
         }
         else
         {
             fprintf(stderr, "Error! Error of processing string at section .data\n");
             abort();
         }
+        //printf("len_of_operand in parse_section_data = %lu\n", instruction.operands.len_of_string_operand);
         commands->instructions[commands->size_of_instructions++] = instruction;
         if (commands->size_of_instructions >= size_of_file)
         {
@@ -1068,6 +1080,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         //printf("param_1 = %s\nlen_of_param = %lu\n", param_1, strlen(param_1));
         instruction->opcode = OP_PUSH_REG;
         instruction->register_source = get_register(param_1);
+        (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
     }
     else if (strcasecmp(operation, "pop") == 0)
     {
@@ -1081,6 +1094,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         }
         instruction->opcode = OP_POP_TO_REG;
         instruction->register_dest = get_register(param_1);
+        (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
     }
     else if (strcasecmp(operation, "syscall") == 0)
     {
@@ -1108,6 +1122,7 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
     //printf("initial_instruction = %s\n", initial_instruction);
     char list_with_operands[MAX_LEN_FOR_STATIC_ARRAYS] = "";
     size_t id = 0;
+    size_t offset = 0;
     while (*position != '\n')
     {
         list_with_operands[id] = *position;
@@ -1129,60 +1144,86 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
         imm = strtol(list_with_operands, &end, 10);
         (instruction->operands).numeric_operand = imm;
         (instruction->operands).type = TYPE_NUMBER;
-        int pc = find_label_and_change_it(commands, (instruction->label).label_name, (size_t)instruction->initial_instruction, SECTION_DATA, LABEL_WITH_DATA, imm);
+        *pc = find_label_and_change_it(commands, (instruction->label).label_name, (size_t)instruction->initial_instruction, SECTION_DATA, LABEL_WITH_DATA, imm);
+        //*pc += (size_t)instruction->initial_instruction;
+        offset = (size_t)instruction->initial_instruction;
     }
     else
     {
         //printf("list_with_operands = %s\n", list_with_operands);
-        char operand[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+        uint8_t operand[MAX_LEN_FOR_STATIC_ARRAYS] = {0};
+        size_t len_of_operand = 0;
         size_t len = strlen(list_with_operands);
-        size_t pos = 0;
         bool is_between_quotation_marks = false;
-        for (size_t index = 0; index < len; index++)
+        bool is_any_quotation_marks = false;
+        int byte_for_dup = 0;
+        if (strstr(list_with_operands, "dup"))
         {
-            if (list_with_operands[index] == '\'' && !is_between_quotation_marks)
+            int count = 0;
+            int value = 0;
+            sscanf(list_with_operands, "%d dup(%d)", &count, &value);
+            uint8_t b = value & 0xFF;
+            for (int i = 0; i < count; i++) 
             {
-                is_between_quotation_marks = true;
-                continue;
+                operand[len_of_operand++] = b;
             }
-            else if (list_with_operands[index] == '\'' && is_between_quotation_marks)
+        }
+        else
+        {
+            for (size_t index = 0; index < len; index++)
             {
-                is_between_quotation_marks = false;
-                continue;
-            }
-            if ((list_with_operands[index] == ',' ||
-                list_with_operands[index] == ' ' ) && !is_between_quotation_marks)
-            {   
-                continue;
-            }
-            if (is_between_quotation_marks)
-            {
-                operand[pos++] = list_with_operands[index];
-            }
-            else if (isdigit(list_with_operands[index]))
-            {
-                char num[MAX_LEN_FOR_STATIC_ARRAYS] = "";
-                num[0] = list_with_operands[index];
-                index++;
-                size_t num_id = 1;
-                for (; index < len && isdigit(list_with_operands[index]); ++index)
+                if (list_with_operands[index] == '\'' && !is_between_quotation_marks)
                 {
-                    num[num_id++] = list_with_operands[index];
+                    is_any_quotation_marks = true;
+                    is_between_quotation_marks = true;
+                    continue;
                 }
-                int number = atoi(num);
-                //printf("number = %d\n", number);
-                char new_symbol = (char)(number);
-                operand[pos++] = new_symbol;
+                else if (list_with_operands[index] == '\'' && is_between_quotation_marks)
+                {
+                    is_between_quotation_marks = false;
+                    continue;
+                }
+                if ((list_with_operands[index] == ',' ||
+                    list_with_operands[index] == ' ' ) && !is_between_quotation_marks)
+                {   
+                    continue;
+                }
+                if (is_between_quotation_marks)
+                {
+                    operand[len_of_operand++] = list_with_operands[index];
+                }
+                else if (isdigit(list_with_operands[index]))
+                {
+                    //printf("list_with_operands[%lu] = %c\n", index, list_with_operands[index]);
+                    char num[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                    num[0] = list_with_operands[index];
+                    index++;
+                    size_t num_id = 1;
+                    for (; index < len && isdigit(list_with_operands[index]); ++index)
+                    {
+                        num[num_id++] = list_with_operands[index];
+                    }
+                    int number = atoi(num);
+                    //printf("number = %d\n", number);
+                    char new_symbol = (char)(number);
+                    //printf("new_symbol = %d\n", new_symbol);
+                    operand[len_of_operand++] = new_symbol;
+                }
             }
         }
         //printf("operand = %s\n", operand);
-        size_t len_of_operand = strlen(operand);
+        //size_t len_of_operand = strlen(operand);
+        //printf("len_of_operand = %lu\n", len_of_operand);
+        (instruction->operands).len_of_string_operand = len_of_operand;
         memcpy((instruction->operands).string_operand, operand, len_of_operand);
         (instruction->operands).type = TYPE_STRING;
         //printf("(instruction->label).label_name = %s\n", (instruction->label).label_name);
-        int pc = find_label_and_change_it(commands, (instruction->label).label_name, len_of_operand, SECTION_DATA, LABEL_WITH_DATA, len_of_operand);
+        *pc = find_label_and_change_it(commands, (instruction->label).label_name, len_of_operand, SECTION_DATA, LABEL_WITH_DATA, len_of_operand);
+        //*pc += len_of_operand;
+        offset = len_of_operand;
     }
     instruction->pc = *pc;
+    *pc += offset;
     return;
 }
 
@@ -1391,6 +1432,7 @@ static void encode_data_instructions(struct Data_CMDS *commands, struct Binary_f
     //FIX IT LATER
     for (size_t index = 0; index < commands->size_of_labels_data; index++)
     {
+        //printf("label_name = %s\n", (commands->labels_data)[index].label_name);
         strcpy((binary_struct->data_labels)[index].label_name, (commands->labels_data)[index].label_name);
         (binary_struct->data_labels)[index].imm_data = (commands->labels_data)[index].imm_data;
         (binary_struct->data_labels)[index].pc = (commands->labels_data)[index].pc;
@@ -1420,7 +1462,9 @@ static void encode_data_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else
         {
-            size_t len_of_string = strlen((instruction->operands).string_operand);
+            //printf("operand = %s\n", (instruction->operands).string_operand);
+            size_t len_of_string = (instruction->operands).len_of_string_operand;
+            //printf("len_of_string = %lu\n", len_of_string);
             for (size_t id = 0; id < len_of_string; id++)
             {
                 *pointer_in_buffer_cmds = (uint8_t) ((instruction->operands).string_operand[id]);
