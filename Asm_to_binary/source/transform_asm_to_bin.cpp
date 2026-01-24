@@ -1162,6 +1162,42 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
         //}
     }
+    else if (strcasecmp(operation, "add") == 0)
+    {
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        position = skip_spaces(position, end_pointer);
+        int res = sscanf(position, "%7[^,]", param_1);
+        position += strlen(param_1);
+        position += 2;
+        res += sscanf(position, "%s", param_2);
+        //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
+        if (res != 2)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
+            abort();
+        }
+        bool is_digit = is_str_digit(param_2);
+        int64_t imm = 0;
+        if (is_digit)
+        {
+            char *end = NULL;
+            imm = strtol(param_2, &end, 10);
+        }
+        instruction->opcode = OP_ADD_REG_REG;
+        instruction->register_dest = get_register(param_1);
+        if (is_digit)
+        {
+            instruction->opcode = OP_ADD_REG_IMM;
+            instruction->imm = imm;
+            pc += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
+        }
+        else
+        {
+            instruction->register_source = get_register(param_2);
+            (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
+        }
+    }
     else if (strcasecmp(operation, "push") == 0)
     {
         char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
@@ -1540,6 +1576,34 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             *pointer_in_buffer_cmds = 0x48;
             pointer_in_buffer_cmds++;
             *pointer_in_buffer_cmds = 0x31;
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0xC0;//mod = 11b - register mode
+            modrm |= ((instruction->register_source & 0x7) << 3);
+            modrm |= (instruction->register_dest & 0x7);
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1 + 1 + 1;
+        }
+        else if (instruction->opcode == OP_ADD_REG_IMM)
+        {
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x81;
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0xC0 | (instruction->register_dest & 0x7);
+            *pointer_in_buffer_cmds++ = modrm;
+            pointer_in_buffer_cmds++;
+            //imm little_endian
+            uint32_t imm = (uint32_t) instruction->imm;
+            memcpy(pointer_in_buffer_cmds, &imm, 4);
+            pointer_in_buffer_cmds += 4;
+            buffer_of_commands_size += 1 + 1/*opcode*/ + 4/*imm32*/ + 1/*REX*/;
+        }
+        else if (instruction->opcode == OP_ADD_REG_REG)
+        {
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x01;//code for ||add reg, reg||
             pointer_in_buffer_cmds++;
             uint8_t modrm = 0xC0;//mod = 11b - register mode
             modrm |= ((instruction->register_source & 0x7) << 3);

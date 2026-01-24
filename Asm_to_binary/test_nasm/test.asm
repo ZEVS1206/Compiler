@@ -9,7 +9,8 @@ section .data
 section .text
     global _start
 _start:
-    mov rsi, [rel msg]
+    add rax, 7
+    add rax, rbx
     mov rax, 60
     xor rdi, rdi
     syscall

@@ -68,19 +68,20 @@ enum Opcode
 {
     UNKNOWN_OPCODE               = 0,
     OP_MOV_REG_IMM               = 1,
-    OP_ADD_REG_REG               = 2,
-    OP_JMP_LABEL                 = 3,
-    OP_MOV_REG_REG               = 4,
-    OP_XOR_REG_REG               = 5,
-    OP_XOR_REG_IMM               = 6,
-    OP_SYSCALL                   = 7,
-    OP_MOV_REG_LABEL             = 8,
-    OP_PUSH_REG                  = 9,
-    OP_POP_TO_REG                = 10,
-    OP_LEA_REG_ABS_ADDRESS_REG   = 11,
-    OP_LEA_REG_ABS_ADDRESS_LABEL = 12,
-    OP_MOV_REG_ADDRESS_REG       = 13,
-    OP_MOV_REG_ADDRESS_LABEL     = 14
+    OP_JMP_LABEL                 = 2,
+    OP_MOV_REG_REG               = 3,
+    OP_XOR_REG_REG               = 4,
+    OP_XOR_REG_IMM               = 5,
+    OP_SYSCALL                   = 6,
+    OP_MOV_REG_LABEL             = 7,
+    OP_PUSH_REG                  = 8,
+    OP_POP_TO_REG                = 9,
+    OP_LEA_REG_ABS_ADDRESS_REG   = 10,
+    OP_LEA_REG_ABS_ADDRESS_LABEL = 11,
+    OP_MOV_REG_ADDRESS_REG       = 12,
+    OP_MOV_REG_ADDRESS_LABEL     = 13,
+    OP_ADD_REG_IMM               = 14,
+    OP_ADD_REG_REG               = 15
 };
 
 enum Jmp_cmds
