@@ -78,7 +78,9 @@ enum Opcode
     OP_PUSH_REG                  = 9,
     OP_POP_TO_REG                = 10,
     OP_LEA_REG_ABS_ADDRESS_REG   = 11,
-    OP_LEA_REG_ABS_ADDRESS_LABEL = 12
+    OP_LEA_REG_ABS_ADDRESS_LABEL = 12,
+    OP_MOV_REG_ADDRESS_REG       = 13,
+    OP_MOV_REG_ADDRESS_LABEL     = 14
 };
 
 enum Jmp_cmds

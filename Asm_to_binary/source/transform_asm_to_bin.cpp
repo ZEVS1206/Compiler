@@ -995,38 +995,81 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
             abort();
         }
-        bool is_digit = is_str_digit(param_2);
-        int64_t imm = 0;
-        if (is_digit)
+        bool is_addr = false;
+        if (param_2[0] == '[')
         {
-            char *end = NULL;
-            imm = strtol(param_2, &end, 10);
+            is_addr = true;
+            size_t index = 0;
+            char new_param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+            {
+                index++;
+            }
+            if (index + 2 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] == 'r' && param_2[index + 1] == 'e' && param_2[index + 2] == 'l')
+            {
+                printf("it is relative offset! WIP\n");
+                abort();
+            }
+            else
+            {
+                index = 1;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']')
+                {
+                    new_param_2[index - 1] = param_2[index];
+                    index++;
+                }
+                memset(param_2, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
+                strncpy(param_2, new_param_2, STATIC_LEN_FOR_SMALL_ARRAYS);
+            }
         }
-        instruction->opcode = OP_MOV_REG_REG;
-        instruction->register_dest = get_register(param_1);
-        if (is_digit)
+        if (!is_addr)
         {
-            instruction->opcode = OP_MOV_REG_IMM;
-            instruction->imm = imm;
-            (*pc) += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
+            bool is_digit = is_str_digit(param_2);
+            int64_t imm = 0;
+            if (is_digit)
+            {
+                char *end = NULL;
+                imm = strtol(param_2, &end, 10);
+            }
+            instruction->opcode = OP_MOV_REG_REG;
+            instruction->register_dest = get_register(param_1);
+            if (is_digit)
+            {
+                instruction->opcode = OP_MOV_REG_IMM;
+                instruction->imm = imm;
+                (*pc) += 1/*opcode*/ + 8/*imm64*/ + 1/*REX*/;
+            }
+            else
+            {
+                instruction->register_source = get_register(param_2);
+                if (instruction->register_source == UNKNOWN_REGISTER)
+                {
+                    struct Label label = get_label(commands, param_2, SECTION_DATA);
+                    
+                    if (label.type == CONSTANT_LABEL)
+                    {
+                        instruction->opcode = OP_MOV_REG_IMM;
+                        instruction->imm = label.imm_data;
+                    }
+                    else
+                    {
+                        instruction->opcode = OP_MOV_REG_LABEL;
+                        strcpy((instruction->label).label_name, param_2);
+                    }
+                }
+                (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
+            }
         }
         else
         {
+            instruction->opcode = OP_MOV_REG_ADDRESS_REG;
+            instruction->register_dest = get_register(param_1);
             instruction->register_source = get_register(param_2);
             if (instruction->register_source == UNKNOWN_REGISTER)
             {
                 struct Label label = get_label(commands, param_2, SECTION_DATA);
-                
-                if (label.type == CONSTANT_LABEL)
-                {
-                    instruction->opcode = OP_MOV_REG_IMM;
-                    instruction->imm = label.imm_data;
-                }
-                else
-                {
-                    instruction->opcode = OP_MOV_REG_LABEL;
-                    strcpy((instruction->label).label_name, param_2);
-                }
+                instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
+                strcpy((instruction->label).label_name, param_2);
             }
             (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
         }
@@ -1427,6 +1470,38 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             pointer_in_buffer_cmds += 8;
             buffer_of_commands_size += 1 + 1 + 8;
             add_relocation(binary_struct, buffer_of_commands_size - 8, (instruction->label).label_name, R_X86_64_64, 0);
+        }
+        else if (instruction->opcode == OP_MOV_REG_ADDRESS_REG)
+        {
+            //Prefix REX
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x8B;
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0x00;//mod = 00b - mode r/m
+            modrm |= ((instruction->register_dest & 0x7) << 3);
+            modrm |= (instruction->register_source & 0x7);
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1 + 1 + 1;
+        }
+        else if (instruction->opcode == OP_MOV_REG_ADDRESS_LABEL)
+        {
+            //Prefix REX
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x8B;
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0x00;//mod = 00b - mode r/m
+            modrm |= ((instruction->register_dest & 0x7) << 3);
+            modrm |= 0x5;
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            int64_t zero = 0;
+            memcpy(pointer_in_buffer_cmds, &zero, 4);
+            pointer_in_buffer_cmds += 4;
+            buffer_of_commands_size += 1 + 1 + 1 + 4;
+            add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
         }
         else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_REG)
         {
