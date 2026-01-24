@@ -10,9 +10,11 @@ section .text
     global _start
 _start:
     input_str msg, len
-    print_str msg, len
-    input_str msg, len
-    print_str msg, len
+    mov rax, 1
+    mov rdi, 1
+    lea rsi, [msg]
+    mov rdx, len
+    syscall
     mov rax, 60
     xor rdi, rdi
     syscall

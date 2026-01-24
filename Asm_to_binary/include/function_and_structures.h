@@ -66,17 +66,19 @@ struct Binary_file
 
 enum Opcode
 {
-    UNKNOWN_OPCODE   = 0,
-    OP_MOV_REG_IMM   = 1,
-    OP_ADD_REG_REG   = 2,
-    OP_JMP_LABEL     = 3,
-    OP_MOV_REG_REG   = 4,
-    OP_XOR_REG_REG   = 5,
-    OP_XOR_REG_IMM   = 6,
-    OP_SYSCALL       = 7,
-    OP_MOV_REG_LABEL = 8,
-    OP_PUSH_REG      = 9,
-    OP_POP_TO_REG    = 10
+    UNKNOWN_OPCODE               = 0,
+    OP_MOV_REG_IMM               = 1,
+    OP_ADD_REG_REG               = 2,
+    OP_JMP_LABEL                 = 3,
+    OP_MOV_REG_REG               = 4,
+    OP_XOR_REG_REG               = 5,
+    OP_XOR_REG_IMM               = 6,
+    OP_SYSCALL                   = 7,
+    OP_MOV_REG_LABEL             = 8,
+    OP_PUSH_REG                  = 9,
+    OP_POP_TO_REG                = 10,
+    OP_LEA_REG_ABS_ADDRESS_REG   = 11,
+    OP_LEA_REG_ABS_ADDRESS_LABEL = 12
 };
 
 enum Jmp_cmds
@@ -176,6 +178,7 @@ struct Instruction
     int64_t imm;//const value in register
     struct Label label;
     int32_t pc;//offset of this instruction in bytes from start point
+    int64_t address;
 };
 
 

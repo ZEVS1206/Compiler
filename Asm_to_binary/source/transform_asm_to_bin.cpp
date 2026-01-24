@@ -982,8 +982,8 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
     position += strlen(operation);
     if (strcasecmp(operation, "mov") == 0)
     {
-        char param_1[8] = "";
-        char param_2[8] = "";
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         position = skip_spaces(position, end_pointer);
         int res = sscanf(position, "%7[^,]", param_1);
         position += strlen(param_1);
@@ -1031,10 +1031,62 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
         }
     }
+    else if (strcasecmp(operation, "lea") == 0)
+    {
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        position = skip_spaces(position, end_pointer);
+        int res = sscanf(position, "%7[^,]", param_1);
+        position += strlen(param_1);
+        position += 2;
+        res += sscanf(position, "%s", param_2);
+        if (param_2[0] == '[')
+        {
+            size_t index = 0;
+            char new_param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+            {
+                index++;
+            }
+            if (index + 2 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] == 'r' && param_2[index + 1] == 'e' && param_2[index + 2] == 'l')
+            {
+                printf("it is relative offset! WIP\n");
+                abort();
+            }
+            else
+            {
+                index = 1;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']')
+                {
+                    new_param_2[index - 1] = param_2[index];
+                    index++;
+                }
+                memset(param_2, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
+                strncpy(param_2, new_param_2, STATIC_LEN_FOR_SMALL_ARRAYS);
+            }
+        }
+        //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
+        if (res != 2)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
+            abort();
+        }
+        instruction->opcode = OP_LEA_REG_ABS_ADDRESS_REG;
+        instruction->register_dest = get_register(param_1);
+        //FIX IT(recursive descent!!!)
+        instruction->register_source = get_register(param_2);
+        if (instruction->register_source == UNKNOWN_REGISTER)
+        {
+            struct Label label = get_label(commands, param_2, SECTION_DATA);
+            instruction->opcode = OP_LEA_REG_ABS_ADDRESS_LABEL;
+            strcpy((instruction->label).label_name, param_2);
+        }
+        (*pc) += 1/*opcode*/ + 1/*ModR/M*/ + 1/*REX*/;
+    }
     else if (strcasecmp(operation, "xor") == 0)
     {
-        char param_1[8] = "";
-        char param_2[8] = "";
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         position = skip_spaces(position, end_pointer);
         int res = sscanf(position, "%7[^,]", param_1);
         position += strlen(param_1);
@@ -1069,7 +1121,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
     }
     else if (strcasecmp(operation, "push") == 0)
     {
-        char param_1[8] = "";
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         position = skip_spaces(position, end_pointer);
         int res = sscanf(position, "%s", param_1);
         if (res != 1)
@@ -1084,7 +1136,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
     }
     else if (strcasecmp(operation, "pop") == 0)
     {
-        char param_1[8] = "";
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         position = skip_spaces(position, end_pointer);
         int res = sscanf(position, "%s", param_1);
         if (res != 1)
@@ -1375,6 +1427,38 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             pointer_in_buffer_cmds += 8;
             buffer_of_commands_size += 1 + 1 + 8;
             add_relocation(binary_struct, buffer_of_commands_size - 8, (instruction->label).label_name, R_X86_64_64, 0);
+        }
+        else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_REG)
+        {
+            //Prefix REX
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x8D;//Opcode of ||lea||
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0x00;//mod = 00b - mode r/m
+            modrm |= ((instruction->register_dest & 0x7) << 3);
+            modrm |= (instruction->register_source & 0x7);
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1 + 1 + 1;
+        }
+        else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_LABEL)
+        {
+            //Prefix REX
+            *pointer_in_buffer_cmds = 0x48;
+            pointer_in_buffer_cmds++;
+            *pointer_in_buffer_cmds = 0x8D;//Opcode of ||lea||
+            pointer_in_buffer_cmds++;
+            uint8_t modrm = 0x00;//mod = 00b - mode r/m
+            modrm |= ((instruction->register_dest & 0x7) << 3);
+            modrm |= 0x5;
+            *pointer_in_buffer_cmds = modrm;
+            pointer_in_buffer_cmds++;
+            int64_t zero = 0;
+            memcpy(pointer_in_buffer_cmds, &zero, 4);
+            pointer_in_buffer_cmds += 4;
+            buffer_of_commands_size += 1 + 1 + 1 + 4;
+            add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
         }
         else if (instruction->opcode == OP_XOR_REG_REG)
         {
