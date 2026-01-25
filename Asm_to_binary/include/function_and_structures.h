@@ -81,7 +81,9 @@ enum Opcode
     OP_MOV_REG_ADDRESS_REG       = 12,
     OP_MOV_REG_ADDRESS_LABEL     = 13,
     OP_ADD_REG_IMM               = 14,
-    OP_ADD_REG_REG               = 15
+    OP_ADD_REG_REG               = 15,
+    OP_SUB_REG_IMM               = 16,
+    OP_SUB_REG_REG               = 17
 };
 
 enum Jmp_cmds
@@ -95,26 +97,90 @@ enum Jmp_cmds
     JE              = 6,//==
     JNE             = 7 //!=
 };
-
-enum Register
+enum Register_x8
 {
-    RAX              = 0,
-    RCX              = 1,
-    RDX              = 2,
-    RBX              = 3,
-    RSP              = 4,
-    RBP              = 5,
-    RSI              = 6,
-    RDI              = 7,
-    R8               = 8,
-    R9               = 9,
-    R10              = 10,
-    R11              = 11,
-    R12              = 12,
-    R13              = 13,
-    R14              = 14,
-    R15              = 15,
-    UNKNOWN_REGISTER = 16
+    AL                  = 0,
+    CL                  = 1,
+    DL                  = 2,
+    BL                  = 3,
+    AH                  = 4,
+    CH                  = 5,
+    DH                  = 6,
+    BH                  = 7,
+    UNKNOWN_REGISTER_X8 = 16
+};
+
+enum Register_x16
+{
+    AX                   = 0,
+    CX                   = 1,
+    DX                   = 2,
+    BX                   = 3,
+    SP                   = 4,
+    BP                   = 5,
+    SI                   = 6,
+    DI                   = 7,
+    UNKNOWN_REGISTER_X16 = 16
+};
+
+enum Register_x32
+{
+    EAX                  = 0,
+    ECX                  = 1,
+    EDX                  = 2,
+    EBX                  = 3,
+    ESP                  = 4,
+    EBP                  = 5,
+    ESI                  = 6,
+    EDI                  = 7,
+    E8                   = 8,
+    E9                   = 9,
+    E10                  = 10,
+    E11                  = 11,
+    E12                  = 12,
+    E13                  = 13,
+    E14                  = 14,
+    E15                  = 15,
+    UNKNOWN_REGISTER_X32 = 16
+};
+
+enum Register_x64
+{
+    RAX                  = 0,
+    RCX                  = 1,
+    RDX                  = 2,
+    RBX                  = 3,
+    RSP                  = 4,
+    RBP                  = 5,
+    RSI                  = 6,
+    RDI                  = 7,
+    R8                   = 8,
+    R9                   = 9,
+    R10                  = 10,
+    R11                  = 11,
+    R12                  = 12,
+    R13                  = 13,
+    R14                  = 14,
+    R15                  = 15,
+    UNKNOWN_REGISTER_X64 = 16
+};
+
+enum Register_type
+{
+    UNKNOWN_REGISTER_TYPE = 0,
+    TYPE_X8               = 1,
+    TYPE_X16              = 2,
+    TYPE_X32              = 3,
+    TYPE_X64              = 4
+};
+
+struct Register
+{
+    Register_type type;
+    Register_x8  register_x8;
+    Register_x16 register_x16;
+    Register_x32 register_x32;
+    Register_x64 register_x64;
 };
 
 enum Sections
