@@ -9,8 +9,8 @@ section .data
 section .text
     global _start
 _start:
-    sub rax, 15
-    sub rcx, rax
+    inc rax
+    dec rax
     mov rax, 60
     xor rdi, rdi
     syscall

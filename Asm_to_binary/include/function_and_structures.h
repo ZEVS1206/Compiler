@@ -83,7 +83,15 @@ enum Opcode
     OP_ADD_REG_IMM               = 14,
     OP_ADD_REG_REG               = 15,
     OP_SUB_REG_IMM               = 16,
-    OP_SUB_REG_REG               = 17
+    OP_SUB_REG_REG               = 17,
+    OP_MUL_REG                   = 18,
+    OP_IMUL_REG_REG              = 19,
+    OP_DIV_REG                   = 20,
+    OP_IDIV_REG                  = 21,
+    OP_MOV_MEMORY_REG            = 22,
+    OP_MOV_MEMORY_IMM            = 23,
+    OP_INC_REG                   = 24,
+    OP_DEC_REG                   = 25
 };
 
 enum Jmp_cmds
@@ -226,6 +234,22 @@ enum Type_of_label
     LABEL_FOR_JMP   = 3
 };
 
+enum Type_of_data
+{
+    UNKNOWN_DATA_TYPE = 0,
+    NUMBER            = 1,
+    BUFFER_STR        = 2
+};
+
+enum Size_of_imm
+{
+    UNKNOWN_IMM  = 0,
+    SIZE_IMM_8   = 1,
+    SIZE_IMM_16  = 2,
+    SIZE_IMM_32  = 4,
+    SIZE_IMM_64  = 8
+};
+
 struct Label
 {
     char label_name[100];
@@ -234,6 +258,7 @@ struct Label
     Type_of_label type;
     int64_t imm_data;
     unsigned position_in_strtab;
+    Type_of_data type_of_data;
 };
 
 struct Instruction
@@ -248,6 +273,7 @@ struct Instruction
     struct Label label;
     int32_t pc;//offset of this instruction in bytes from start point
     int64_t address;
+    Size_of_imm size_of_imm_data;
 };
 
 
