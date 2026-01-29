@@ -91,7 +91,9 @@ enum Opcode
     OP_MOV_MEMORY_REG            = 22,
     OP_MOV_MEMORY_IMM            = 23,
     OP_INC_REG                   = 24,
-    OP_DEC_REG                   = 25
+    OP_DEC_REG                   = 25,
+    OP_CMP_REG_IMM               = 26,
+    OP_CMP_REG_REG               = 27,
 };
 
 enum Jmp_cmds
@@ -259,6 +261,7 @@ struct Label
     int64_t imm_data;
     unsigned position_in_strtab;
     Type_of_data type_of_data;
+    bool label_before_use;
 };
 
 struct Instruction

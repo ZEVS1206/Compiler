@@ -8,9 +8,19 @@ section .data
 
 section .text
     global _start
-_start:
-    inc rax
-    dec rax
+
+label:
     mov rax, 60
     xor rdi, rdi
     syscall
+_start:
+    mov rax, 5
+    cmp rax, 20
+    cmp rbx, 30
+;    jne some_label
+    mov rax, 10
+    jmp label
+;some_label:
+;    mov rax, 60
+;    xor rdi, rdi
+;    syscall
