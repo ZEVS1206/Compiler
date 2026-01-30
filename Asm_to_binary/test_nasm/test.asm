@@ -20,17 +20,18 @@ func2:
     syscall
 
 some_label:
-    mov rdx, 15
+    print_str msg1, len1
     jmp label
 
 _start:
     mov rax, 5
-    cmp rax, 20
     cmp rbx, 30
-;    jne some_label
+    jne some_label
     mov rax, 10
     jmp some_label
 label:
+    input_str msg, len
+    print_str msg, len
     mov rax, 60
     xor rdi, rdi
     syscall

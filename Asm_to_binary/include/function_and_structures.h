@@ -95,6 +95,12 @@ enum Opcode
     OP_DEC_REG                   = 25,
     OP_CMP_REG_IMM               = 26,
     OP_CMP_REG_REG               = 27,
+    OP_JA_LABEL                  = 28,
+    OP_JAE_LABEL                 = 29,
+    OP_JB_LABEL                  = 30,
+    OP_JBE_LABEL                 = 31,
+    OP_JE_LABEL                  = 32,
+    OP_JNE_LABEL                 = 33
 };
 
 enum Jmp_cmds

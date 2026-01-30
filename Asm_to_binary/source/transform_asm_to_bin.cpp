@@ -1495,7 +1495,9 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
                 {
                     (*pc) += 1/*REX*/;
                 }
-                (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+                (*pc) += 1/*opcode*/;
+                instruction->size_of_imm_data = get_size_of_imm_for_parse(instruction);
+                (*pc) += instruction->size_of_imm_data;
             }
         }
         else if (is_addr_second_arg && !is_addr_first_arg)
@@ -1570,7 +1572,9 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         {
             (*pc) += 1/*REX*/;
         }
-        (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+        (*pc) += 1/*opcode*/;
+        instruction->size_of_imm_data = get_size_of_imm_for_parse(instruction);
+        (*pc) += instruction->size_of_imm_data;
     }
     else if (strcasecmp(operation, "xor") == 0)
     {
@@ -1927,7 +1931,79 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         instruction->opcode = OP_SYSCALL;
         *pc += 2;
     }
-    //printf("pc = %d\n", *pc);
+    else 
+    {
+        bool is_jmp_cmd = false;
+        if (strcasecmp(operation, "ja")   == 0 ||
+            strcasecmp(operation, "jg")   == 0 ||
+            strcasecmp(operation, "jnbe") == 0 ||
+            strcasecmp(operation, "jnle") == 0)
+        {
+            instruction->opcode = OP_JA_LABEL;
+            is_jmp_cmd = true;
+        }
+        else if (strcasecmp(operation, "jb")   == 0 ||
+                 strcasecmp(operation, "jl")   == 0 ||
+                 strcasecmp(operation, "jnae") == 0 ||
+                 strcasecmp(operation, "jnge") == 0 ||
+                 strcasecmp(operation, "jc")   == 0)
+        {
+            instruction->opcode = OP_JB_LABEL;
+            is_jmp_cmd = true;
+        }
+        else if (strcasecmp(operation, "jae") == 0 ||
+                 strcasecmp(operation, "jge") == 0 ||
+                 strcasecmp(operation, "jnb") == 0 ||
+                 strcasecmp(operation, "jnc") == 0 ||
+                 strcasecmp(operation, "jnl") == 0)
+        {
+            instruction->opcode = OP_JAE_LABEL;
+            is_jmp_cmd = true;
+        }
+        else if (strcasecmp(operation, "jbe") == 0 ||
+                 strcasecmp(operation, "jle") == 0 ||
+                 strcasecmp(operation, "jna") == 0 ||
+                 strcasecmp(operation, "jng") == 0)
+        {
+            instruction->opcode = OP_JBE_LABEL;
+            is_jmp_cmd = true;
+        }
+        else if (strcasecmp(operation, "je") == 0 ||
+                 strcasecmp(operation, "jz") == 0)
+        {
+            instruction->opcode = OP_JE_LABEL;
+            is_jmp_cmd = true;
+        }
+        else if (strcasecmp(operation, "jne") == 0 ||
+                 strcasecmp(operation, "jnz") == 0)
+        {
+            instruction->opcode = OP_JNE_LABEL;
+            is_jmp_cmd = true;
+        }
+        if (is_jmp_cmd)
+        {
+            char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            position = skip_spaces(position, end_pointer);
+            int res = sscanf(position, "%s", param_1);
+            if (res != 1)
+            {
+                fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing jmp\n");
+                abort();
+            }
+            struct Label label = get_label(commands, param_1, SECTION_TEXT);
+            if (strlen(label.label_name) == 0)
+            {
+                add_label(commands, param_1, *pc, SECTION_TEXT, 0, LABEL_FOR_JMP, 0, false);
+                label = get_label(commands, param_1, SECTION_TEXT);
+            }
+            label.imm_data = *pc;
+            instruction->label = label;
+
+            *pc += 1/*opcode*/ + 4/*disp*/ + 1;
+        }
+    }
+    //printf("operation = %s\n", operation);
+    //printf("pc_after_parse = %d\n", *pc);
     //printf("operation = %s\nopcode = %d\n", operation, instruction->opcode);
     //instruction->pc = *pc;
     return;
@@ -2505,6 +2581,37 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
         case OP_JMP_LABEL:
         {
             return 0xE9;
+            break;
+        }
+        case OP_JA_LABEL:
+        {
+            return 0x87;
+            break;
+        }
+        case OP_JAE_LABEL:
+        {
+            return 0x83;
+            break;
+        }
+        case OP_JB_LABEL:
+        {
+            return 0x82;
+            break;
+        }
+        case OP_JBE_LABEL:
+        {
+            return 0x86;
+            break;
+        }
+        case OP_JE_LABEL:
+        {
+            return 0x84;
+            break;
+        }
+        case OP_JNE_LABEL:
+        {
+            return 0x85;
+            break;
         }
         default:
         {
@@ -3389,8 +3496,20 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             pointer_in_buffer_cmds++;
             buffer_of_commands_size += 1 + 1;
         }
-        else if (instruction->opcode == OP_JMP_LABEL)
+        else if (instruction->opcode == OP_JMP_LABEL ||
+                 instruction->opcode == OP_JA_LABEL  ||
+                 instruction->opcode == OP_JAE_LABEL ||
+                 instruction->opcode == OP_JB_LABEL  ||
+                 instruction->opcode == OP_JBE_LABEL ||
+                 instruction->opcode == OP_JE_LABEL  ||
+                 instruction->opcode == OP_JNE_LABEL)
         {
+            if (instruction->opcode != OP_JMP_LABEL)
+            {
+                *pointer_in_buffer_cmds = 0x0F;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1;
+            }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             *pointer_in_buffer_cmds = opcode;
             pointer_in_buffer_cmds++;
@@ -3407,7 +3526,15 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 offset = (instruction->label).pc;
             }
-            add_relocation(binary_struct, offset + 1, (instruction->label).label_name, R_X86_64_PC32, -4);
+            if (instruction->opcode == OP_JMP_LABEL)
+            {
+                offset += 1;
+            }
+            else
+            {
+                offset += 2;
+            }
+            add_relocation(binary_struct, offset, (instruction->label).label_name, R_X86_64_PC32, -4);
         }
         else if (instruction->opcode == OP_SYSCALL)
         {
