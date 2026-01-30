@@ -31,6 +31,7 @@ struct Function_type
     char name[50];
     unsigned position_in_strtab;
     size_t offset_in_text;
+    size_t count_of_bytes_before;
 };
 
 struct Relocation

@@ -64,6 +64,7 @@ static size_t next_power_of_two(size_t n);
 static FILE * preprocess_programm_from_source(FILE *file_pointer);
 static Size_of_imm get_size_of_imm(int64_t imm);
 static Size_of_imm get_size_of_imm_for_parse(Instruction *instruction);
+static int cmp(const void *a, const void *b);
 
 static Size_of_imm get_size_of_imm_for_parse(Instruction *instruction)
 {
@@ -225,6 +226,21 @@ static FILE * preprocess_programm_from_source(FILE *file_pointer)
     return preprocessed_file_pointer;
 }
 
+static int cmp(const void *a, const void *b)
+{
+    const struct Function_type elem_a = *(const struct Function_type *)a;
+    const struct Function_type elem_b = *(const struct Function_type *)b;
+    if (elem_a.offset_in_text > elem_b.offset_in_text)
+    {
+        return 1;
+    }
+    else if (elem_a.offset_in_text < elem_b.offset_in_text)
+    {
+        return -1;
+    }
+    return 0;
+}
+
 Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
 {
     if (file_pointer == NULL)
@@ -249,6 +265,7 @@ Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
     {
         return error;
     }
+    qsort((binary_struct.all_functions), (binary_struct.count_of_functions), sizeof(struct Function_type), cmp);
     // for (size_t id = 0; id < binary_struct.size_of_text_labels; ++id)
     // {
     //     printf("label_name = %s\n", (binary_struct.text_labels)[id].label_name);
@@ -362,8 +379,9 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         syms[index].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE);
         syms[index].st_shndx = 2;
         syms[index].st_value = (binary_struct->text_labels)[id].pc;
+        //printf("pc = %d\n", (binary_struct->text_labels)[id].pc);
         syms[index].st_size = (Elf64_Xword)(binary_struct->text_labels)[id].size_of_data;
-        //offset_in_text += 15;
+        //offset_in_text += 15;//(binary_struct->all_functions)[0].offset_in_text;
         //printf("(binary_struct->size_of_relocation_table) = %lu\n", (binary_struct->size_of_relocation_table));
         if (index_in_rel_table == (binary_struct->size_of_relocation_table))
         {
@@ -377,11 +395,14 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         // {
         //     break;
         // }
+        //printf("func_name = %s\n", ((binary_struct->all_functions)[id_in_all_func]).name);
+        //printf("text_pc = %lu\n", ((binary_struct->all_functions)[id_in_all_func]).offset_in_text);
+        //offset_in_text += (binary_struct->all_functions)[id_in_all_func].offset_in_text;
         syms[index].st_name = (binary_struct->all_functions)[id_in_all_func].position_in_strtab;
         syms[index].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
         syms[index].st_shndx = 2; // will be .text index
         syms[index].st_value = offset_in_text;
-        syms[index].st_size = (Elf64_Xword)(binary_struct->all_functions)[id_in_all_func].offset_in_text;
+        syms[index].st_size = (Elf64_Xword)(binary_struct->all_functions)[id_in_all_func].offset_in_text;;
         offset_in_text += (binary_struct->all_functions)[id_in_all_func].offset_in_text;
     }
     for (size_t id = 0; index < SYM_COUNT && id < binary_struct->size_of_data_labels; index++, id++)
@@ -1072,12 +1093,16 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
                 }
                 if (index_of_last_function != -1)
                 {
+                    //printf("text_pc = %d\n", text_pc);
+                    //printf("index_of_last_function = %d\n", index_of_last_function);
                     (binary_struct->all_functions)[index_of_last_function].offset_in_text = text_pc;
                 }
                 for (size_t index = 0; index < (binary_struct->count_of_functions); index++)
                 {
                     if (strcasecmp((binary_struct->all_functions)[index].name, new_label_name) == 0)
                     {
+                        //printf("index = %lu\ntext_pc = %d\n", index, text_pc);
+                        (binary_struct->all_functions)[index].offset_in_text = text_pc;
                         index_of_last_function = index;
                         break;
                     }
@@ -1113,6 +1138,7 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
         }
     }
     (binary_struct->all_functions)[index_of_last_function].offset_in_text = text_pc;
+    //printf("text_pc_after_parse = %d\n", text_pc);
     return;
 }
 
@@ -2041,6 +2067,7 @@ static void get_all_functions(struct Binary_file *binary_struct, FILE *file_poin
     {
         sscanf(all_functions + position, "%s", ((binary_struct->all_functions)[index]).name);
         position += strlen(((binary_struct->all_functions)[index]).name) + 1;
+        //printf("func_name = %s\n", ((binary_struct->all_functions)[index]).name);
     }
 
     return;
