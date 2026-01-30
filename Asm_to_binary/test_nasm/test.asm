@@ -1,4 +1,4 @@
-;2 _start func
+;3 _start func func2
 %include "include/test_file_for_add.inc"
 section .data
     msg db 20 dup(0)
@@ -10,19 +10,27 @@ section .text
     global _start
 
 func:
-    mov rdx, 10
-;label:
     mov rax, 60
     xor rdi, rdi
     syscall
+
+func2:
+    mov rax, 60
+    xor rdi, rdi
+    syscall
+
+some_label:
+    mov rdx, 15
+    jmp label
+
 _start:
     mov rax, 5
     cmp rax, 20
     cmp rbx, 30
 ;    jne some_label
     mov rax, 10
-;    jmp label
-;some_label:
+    jmp some_label
+label:
     mov rax, 60
     xor rdi, rdi
     syscall

@@ -327,6 +327,8 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     binary_struct->len_symbol_string_table = 1;
     (binary_struct->symbol_string_table)[0] = '\0';
     unsigned string_name_file  = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), "transform_asm_to_bin.cpp");
+    unsigned string_name_text  = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), ".text");
+    unsigned string_name_data  = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), ".data");
     for (size_t index = 0; index < binary_struct->count_of_functions; index++)
     {
         (binary_struct->all_functions)[index].position_in_strtab = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), (binary_struct->all_functions)[index].name);
@@ -362,9 +364,15 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     syms[1].st_shndx = SHN_ABS;
     // [2] section .text
     syms[2].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
-    // [3-...] myfunctions
+    syms[2].st_name = string_name_text;
+    syms[2].st_shndx = 2;
+    // [3] section .data
+    syms[3].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
+    syms[3].st_name = string_name_data;
+    syms[3].st_shndx = 1;
+    // [4-...] myfunctions
     size_t offset_in_text = 0;
-    size_t index = 3;
+    size_t index = 4;
     for (size_t id = 0; index < SYM_COUNT && id < binary_struct->size_of_text_labels; index++, id++)
     {
         size_t index_in_rel_table = 0;
@@ -398,12 +406,20 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         //printf("func_name = %s\n", ((binary_struct->all_functions)[id_in_all_func]).name);
         //printf("text_pc = %lu\n", ((binary_struct->all_functions)[id_in_all_func]).offset_in_text);
         //offset_in_text += (binary_struct->all_functions)[id_in_all_func].offset_in_text;
+        // if (strcasecmp((binary_struct->all_functions)[id_in_all_func].name, "func2") == 0)
+        // {
+        //     offset_in_text += 15;
+        // }
+        // if (strcasecmp((binary_struct->all_functions)[id_in_all_func].name, "_start") == 0)
+        // {
+        //     offset_in_text += binary_struct->count_of_bytes_before_start;
+        // }
         syms[index].st_name = (binary_struct->all_functions)[id_in_all_func].position_in_strtab;
         syms[index].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
         syms[index].st_shndx = 2; // will be .text index
         syms[index].st_value = offset_in_text;
         syms[index].st_size = (Elf64_Xword)(binary_struct->all_functions)[id_in_all_func].offset_in_text;;
-        offset_in_text += (binary_struct->all_functions)[id_in_all_func].offset_in_text;
+        offset_in_text = (binary_struct->all_functions)[id_in_all_func].offset_in_text;
     }
     for (size_t id = 0; index < SYM_COUNT && id < binary_struct->size_of_data_labels; index++, id++)
     {
@@ -439,7 +455,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     // syms[3].st_shndx = 1;    // will be .text index (we place .text as sec idx 1)
     // syms[3].st_value = 0;    // offset in .text
     // syms[3].st_size  = (Elf64_Xword)(binary_struct->len_buffer_of_commands);
-    const int LOCAL_COUNT = 3; // symbols 0..2 are local -> first non-local has index 3
+    const int LOCAL_COUNT = 4; // symbols 0..3 are local -> first non-local has index 4
     // layout sections in file (indices: 0=NULL,1=.data,2=.text,3=.rela.text,4=.shstrtab,5=.symtab,6=.strtab,7=.note.GNU-stack)
     const int SHNUM = 8;
     Elf64_Shdr sh[SHNUM] = {0};
@@ -1045,8 +1061,6 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
     char *end_pointer = (str_for_input + MAX_LEN_FOR_STATIC_ARRAYS);
     Sections section = SECTION_TEXT;
     int index_of_last_function = -1;
-    //bool last_cmd_was_label = false;
-    //struct Label last_label = {};
     while(fgets(str_for_input, sizeof(str_for_input), file_pointer_with_commands))
     {
         struct Instruction instruction = {};
@@ -1101,12 +1115,17 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
                 {
                     if (strcasecmp((binary_struct->all_functions)[index].name, new_label_name) == 0)
                     {
+                        if (strcasecmp(new_label_name, "_start") == 0)
+                        {
+                            //printf("count_of_bytes = %d\n", text_pc);
+                            binary_struct->count_of_bytes_before_start = text_pc;
+                        }
                         //printf("index = %lu\ntext_pc = %d\n", index, text_pc);
                         (binary_struct->all_functions)[index].offset_in_text = text_pc;
                         index_of_last_function = index;
                         break;
                     }
-                }   
+                }
             }
             else
             {
@@ -3382,13 +3401,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             size_t offset = 0;
             if ((instruction->label).label_before_use)
             {
-                offset = ((instruction->label).imm_data - (instruction->label).pc);
+                offset = (instruction->label).imm_data;
             }
             else
             {
                 offset = (instruction->label).pc;
             }
-            add_relocation(binary_struct, offset, (instruction->label).label_name, R_X86_64_PC32, -4);
+            add_relocation(binary_struct, offset + 1, (instruction->label).label_name, R_X86_64_PC32, -4);
         }
         else if (instruction->opcode == OP_SYSCALL)
         {

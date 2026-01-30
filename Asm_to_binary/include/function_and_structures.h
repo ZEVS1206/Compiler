@@ -31,7 +31,6 @@ struct Function_type
     char name[50];
     unsigned position_in_strtab;
     size_t offset_in_text;
-    size_t count_of_bytes_before;
 };
 
 struct Relocation
@@ -63,6 +62,7 @@ struct Binary_file
     struct Label *text_labels;
     size_t size_of_data_labels;
     size_t size_of_text_labels;
+    size_t count_of_bytes_before_start;
 };
 
 enum Opcode
