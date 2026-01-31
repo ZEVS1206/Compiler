@@ -414,11 +414,19 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         // {
         //     offset_in_text += binary_struct->count_of_bytes_before_start;
         // }
+        size_t index_in_rel_table = 0;
+        for (index_in_rel_table = 0; index_in_rel_table < (binary_struct->size_of_relocation_table); index_in_rel_table++)
+        {
+            if (strcasecmp((binary_struct->all_functions)[id_in_all_func].name, (binary_struct->relocation_table)[index_in_rel_table].symbol_name) == 0)
+            {
+                (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
+            }
+        }
         syms[index].st_name = (binary_struct->all_functions)[id_in_all_func].position_in_strtab;
         syms[index].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
         syms[index].st_shndx = 2; // will be .text index
         syms[index].st_value = offset_in_text;
-        syms[index].st_size = (Elf64_Xword)(binary_struct->all_functions)[id_in_all_func].offset_in_text;;
+        syms[index].st_size = (Elf64_Xword)(binary_struct->all_functions)[id_in_all_func].offset_in_text;
         offset_in_text = (binary_struct->all_functions)[id_in_all_func].offset_in_text;
     }
     for (size_t id = 0; index < SYM_COUNT && id < binary_struct->size_of_data_labels; index++, id++)
@@ -629,14 +637,14 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     fwrite(syms, 1, symtab_size, binary_struct->file_pointer);
     //.rela.text
     fseek(binary_struct->file_pointer, (long)rela_text_offset, SEEK_SET);
-    for (size_t index = 0; index < binary_struct->size_of_relocation_table; index++)
+    for (size_t index_in_rela = 0; index_in_rela < binary_struct->size_of_relocation_table; index_in_rela++)
     {
         Elf64_Rela rela = {0};
-        rela.r_offset = (Elf64_Addr)(binary_struct->relocation_table)[index].offset_in_text;
+        rela.r_offset = (Elf64_Addr)(binary_struct->relocation_table)[index_in_rela].offset_in_text;
         //printf("sym.st_name[%lu] = %u\n", (binary_struct->relocation_table)[index].symbol_index, syms[(binary_struct->relocation_table)[index].symbol_index].st_name);
         //printf("symbol_name = %s\nsymbol_index = %d\n", (binary_struct->relocation_table)[index].symbol_name, (binary_struct->relocation_table)[index].symbol_index);
-        rela.r_info = ELF64_R_INFO((binary_struct->relocation_table)[index].symbol_index, (binary_struct->relocation_table)[index].type);
-        rela.r_addend = (Elf64_Sxword)(binary_struct->relocation_table)[index].additional_offset;
+        rela.r_info = ELF64_R_INFO((binary_struct->relocation_table)[index_in_rela].symbol_index, (binary_struct->relocation_table)[index_in_rela].type);
+        rela.r_addend = (Elf64_Sxword)(binary_struct->relocation_table)[index_in_rela].additional_offset;
         fwrite(&rela, 1, sizeof(rela), binary_struct->file_pointer);
     }
     
@@ -1122,6 +1130,7 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
                         }
                         //printf("index = %lu\ntext_pc = %d\n", index, text_pc);
                         (binary_struct->all_functions)[index].offset_in_text = text_pc;
+                        (binary_struct->all_functions)[index].begin_offset = text_pc;
                         index_of_last_function = index;
                         break;
                     }
@@ -1931,6 +1940,25 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         instruction->opcode = OP_SYSCALL;
         *pc += 2;
     }
+    else if (strcasecmp(operation, "ret") == 0)
+    {
+        instruction->opcode = OP_RET;
+        *pc += 1;
+    }
+    else if (strcasecmp(operation, "call") == 0)
+    {
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        position = skip_spaces(position, end_pointer);
+        int res = sscanf(position, "%s", param_1);
+        if (res != 1)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing jmp\n");
+            abort();
+        }
+        instruction->opcode = OP_CALL_FUNC;
+        strcpy((instruction->label).label_name, param_1);
+        *pc += 1/*opcode*/ + 4/*disp*/;
+    }
     else 
     {
         bool is_jmp_cmd = false;
@@ -2611,6 +2639,16 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
         case OP_JNE_LABEL:
         {
             return 0x85;
+            break;
+        }
+        case OP_RET:
+        {
+            return 0xC3;
+            break;
+        }
+        case OP_CALL_FUNC:
+        {
+            return 0xE8;
             break;
         }
         default:
@@ -3544,6 +3582,32 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             *pointer_in_buffer_cmds = 0x05;
             pointer_in_buffer_cmds++;
             buffer_of_commands_size += 2;
+        }
+        else if (instruction->opcode == OP_RET)
+        {
+            *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size++;
+        }
+        else if (instruction->opcode == OP_CALL_FUNC)
+        {
+            *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
+            pointer_in_buffer_cmds++;
+            int64_t zero = 0;
+            memcpy(pointer_in_buffer_cmds, &zero, 4);
+            pointer_in_buffer_cmds += 4;
+            buffer_of_commands_size += 1 + 4;
+            // for (size_t id = 0; id < (binary_struct->count_of_functions); ++id)
+            // {
+            //     if (strcasecmp((instruction->label).label_name, (binary_struct->all_functions)[id].name) == 0)
+            //     {
+            //         (instruction->label).pc = (binary_struct->all_functions)[id].begin_offset;
+            //         break;
+            //     }
+            // }
+            size_t offset = instruction->pc + 1;
+            //printf("offset = %lu\n", offset);
+            add_relocation(binary_struct, offset, (instruction->label).label_name, R_X86_64_PC32, -4);
         }
     }
     binary_struct->len_buffer_of_text_commands = buffer_of_commands_size;

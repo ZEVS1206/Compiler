@@ -31,6 +31,7 @@ struct Function_type
     char name[50];
     unsigned position_in_strtab;
     size_t offset_in_text;
+    size_t begin_offset;
 };
 
 struct Relocation
@@ -100,7 +101,9 @@ enum Opcode
     OP_JB_LABEL                  = 30,
     OP_JBE_LABEL                 = 31,
     OP_JE_LABEL                  = 32,
-    OP_JNE_LABEL                 = 33
+    OP_JNE_LABEL                 = 33,
+    OP_CALL_FUNC                 = 34,
+    OP_RET                       = 35
 };
 
 enum Jmp_cmds
@@ -240,7 +243,8 @@ enum Type_of_label
     NOT_A_LABEL     = 0,
     CONSTANT_LABEL  = 1,
     LABEL_WITH_DATA = 2,
-    LABEL_FOR_JMP   = 3
+    LABEL_FOR_JMP   = 3,
+    FUNCTION        = 4
 };
 
 enum Type_of_data
