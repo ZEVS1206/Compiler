@@ -103,7 +103,8 @@ enum Opcode
     OP_JE_LABEL                  = 32,
     OP_JNE_LABEL                 = 33,
     OP_CALL_FUNC                 = 34,
-    OP_RET                       = 35
+    OP_RET                       = 35,
+    OP_LOOP_LABEL                = 36
 };
 
 enum Jmp_cmds
@@ -127,6 +128,14 @@ enum Register_x8
     CH                  = 5,
     DH                  = 6,
     BH                  = 7,
+    R8B                 = 8,
+    R9B                 = 9,
+    R10B                = 10,
+    R11B                = 11,
+    R12B                = 12,
+    R13B                = 13,
+    R14B                = 14,
+    R15B                = 15,
     UNKNOWN_REGISTER_X8 = 16
 };
 
@@ -140,6 +149,14 @@ enum Register_x16
     BP                   = 5,
     SI                   = 6,
     DI                   = 7,
+    R8W                  = 8,
+    R9W                  = 9,
+    R10W                 = 10,
+    R11W                 = 11,
+    R12W                 = 12,
+    R13W                 = 13,
+    R14W                 = 14,
+    R15W                 = 15,
     UNKNOWN_REGISTER_X16 = 16
 };
 
@@ -153,14 +170,14 @@ enum Register_x32
     EBP                  = 5,
     ESI                  = 6,
     EDI                  = 7,
-    E8                   = 8,
-    E9                   = 9,
-    E10                  = 10,
-    E11                  = 11,
-    E12                  = 12,
-    E13                  = 13,
-    E14                  = 14,
-    E15                  = 15,
+    R8D                  = 8,
+    R9D                  = 9,
+    R10D                 = 10,
+    R11D                 = 11,
+    R12D                 = 12,
+    R13D                 = 13,
+    R14D                 = 14,
+    R15D                 = 15,
     UNKNOWN_REGISTER_X32 = 16
 };
 

@@ -1,4 +1,4 @@
-;3 _start func2 func
+;1 _start
 %include "include/test_file_for_add.inc"
 section .data
     msg db 20 dup(0)
@@ -9,18 +9,15 @@ section .data
 section .text
     global _start
 
-func:
-    input_str msg, len
-    print_str msg, len
-    ret
-
-func2:
-    print_str msg1, len1
-    ret
 
 _start:
-    call func
-    call func2
+    mov rax, 10
+    mov rcx, 2
+cycle:
+    push rcx
+    print_str msg1, len1
+    pop rcx
+    loop cycle
     mov rax, 60
     xor rdi, rdi
     syscall

@@ -783,45 +783,45 @@ static struct Register get_register(const char *register_name)
         register_.type         = TYPE_X32;
         register_.register_x32 = EBP;
     }
-    else if (strcasecmp(register_name, "e8") == 0)
+    else if (strcasecmp(register_name, "r8d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E8;
+        register_.register_x32 = R8D;
     }
-    else if (strcasecmp(register_name, "e9") == 0)
+    else if (strcasecmp(register_name, "r9d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E9;
+        register_.register_x32 = R9D;
     }
-    else if (strcasecmp(register_name, "e10") == 0)
+    else if (strcasecmp(register_name, "r10d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E10;
+        register_.register_x32 = R10D;
     }
-    else if (strcasecmp(register_name, "e11") == 0)
+    else if (strcasecmp(register_name, "r11d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E11;
+        register_.register_x32 = R11D;
     }
-    else if (strcasecmp(register_name, "e12") == 0)
+    else if (strcasecmp(register_name, "r12d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E12;
+        register_.register_x32 = R12D;
     }
-    else if (strcasecmp(register_name, "e13") == 0)
+    else if (strcasecmp(register_name, "r13d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E13;
+        register_.register_x32 = R13D;
     }
-    else if (strcasecmp(register_name, "e14") == 0)
+    else if (strcasecmp(register_name, "r14d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E14;
+        register_.register_x32 = R14D;
     }
-    else if (strcasecmp(register_name, "e15") == 0)
+    else if (strcasecmp(register_name, "r15d") == 0)
     {
         register_.type         = TYPE_X32;
-        register_.register_x32 = E15;
+        register_.register_x32 = R15D;
     }
     else if (strcasecmp(register_name, "ax") == 0)
     {
@@ -863,45 +863,125 @@ static struct Register get_register(const char *register_name)
         register_.type         = TYPE_X16;
         register_.register_x16 = DI;
     }
+    else if (strcasecmp(register_name, "r8w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R8W;
+    }
+    else if (strcasecmp(register_name, "r9w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R9W;
+    }
+    else if (strcasecmp(register_name, "r10w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R10W;
+    }
+    else if (strcasecmp(register_name, "r11w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R11W;
+    }
+    else if (strcasecmp(register_name, "r12w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R12W;
+    }
+    else if (strcasecmp(register_name, "r13w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R13W;
+    }
+    else if (strcasecmp(register_name, "r14w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R14W;
+    }
+    else if (strcasecmp(register_name, "r15w") == 0)
+    {
+        register_.type         = TYPE_X16;
+        register_.register_x16 = R15W;
+    }
     else if (strcasecmp(register_name, "al") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = AL;
     }
     else if (strcasecmp(register_name, "bl") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = BL;
     }
     else if (strcasecmp(register_name, "cl") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = CL;
     }
     else if (strcasecmp(register_name, "Dl") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = DL;
     }
     else if (strcasecmp(register_name, "ah") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = AH;
     }
     else if (strcasecmp(register_name, "bh") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = BH;
     }
     else if (strcasecmp(register_name, "ch") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = CH;
     }
     else if (strcasecmp(register_name, "dh") == 0)
     {
-        register_.type         = TYPE_X8;
+        register_.type        = TYPE_X8;
         register_.register_x8 = DH;
+    }
+    else if (strcasecmp(register_name, "r8b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R8B;
+    }
+    else if (strcasecmp(register_name, "r9b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R9B;
+    }
+    else if (strcasecmp(register_name, "r10b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R10B;
+    }
+    else if (strcasecmp(register_name, "r11b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R11B;
+    }
+    else if (strcasecmp(register_name, "r12b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R12B;
+    }
+    else if (strcasecmp(register_name, "r13b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R13B;
+    }
+    else if (strcasecmp(register_name, "r14b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R14B;
+    }
+    else if (strcasecmp(register_name, "r15b") == 0)
+    {
+        register_.type        = TYPE_X8;
+        register_.register_x8 = R15B;
     }
     return register_;
 }
@@ -1104,6 +1184,7 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
                     struct Label label = get_label(commands, new_label_name, section);
                     if (strlen(label.label_name) == 0)
                     {
+                        //printf("text_pc = %d\n", text_pc);
                         add_label(commands, new_label_name, text_pc, section, 0, LABEL_FOR_JMP, 0, true);
                     }
                     else
@@ -1318,6 +1399,18 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
     binary_struct->len_buffer_of_data_commands = 0;
     encode_data_instructions(&commands, binary_struct);
     encode_text_instructions(&commands, binary_struct);
+    for (size_t index = 0; index < (commands.size_of_instructions); index++)
+    {
+        Instruction *instruction = &((commands.instructions)[index]);
+        if (instruction->opcode == OP_LOOP_LABEL)
+        {
+            if (!(instruction->label).label_before_use)
+            {
+                struct Label label = get_label(&commands, (instruction->label).label_name, SECTION_TEXT);
+                (binary_struct->buffer_of_text_commands)[(instruction->label).imm_data + 1] = label.pc - instruction->pc - 2;
+            }
+        }
+    }
     
     // for (size_t index = 0; index <commands.size_of_labels_data; index++)
     // {
@@ -1499,14 +1592,18 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
                         instruction->opcode = OP_MOV_REG_LABEL;
                         instruction->label = label;
                     }
+                    instruction->size_of_imm_data = get_size_of_imm_for_parse(instruction);
+                    (*pc) += instruction->size_of_imm_data;
+                }
+                else
+                {
+                    (*pc) += 1/*ModR/M*/;
                 }
                 if ((instruction->register_dest).type == TYPE_X64)
                 {
                     (*pc) += 1/*REX*/;
                 }
                 (*pc) += 1/*opcode*/;
-                instruction->size_of_imm_data = get_size_of_imm_for_parse(instruction);
-                (*pc) += instruction->size_of_imm_data;
             }
         }
         else if (is_addr_second_arg && !is_addr_first_arg)
@@ -1664,7 +1761,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             {
                 (*pc) += 1/*REX*/;
             }
-            pc += 1/*opcode*/;
+            *pc += 1/*opcode*/;
             instruction->size_of_imm_data = get_size_of_imm_for_parse(instruction);
             (*pc) += instruction->size_of_imm_data;
         }
@@ -1809,7 +1906,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         //printf("param_1 = %s\nlen_of_param = %lu\n", param_1, strlen(param_1));
         instruction->opcode = OP_PUSH_REG;
         instruction->register_source = get_register(param_1);
-        (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+        (*pc) += 1/*opcode*/;
     }
     else if (strcasecmp(operation, "pop") == 0)
     {
@@ -1823,7 +1920,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         }
         instruction->opcode = OP_POP_TO_REG;
         instruction->register_dest = get_register(param_1);
-        (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+        (*pc) += 1/*opcode*/;
     }
     else if (strcasecmp(operation, "inc") == 0)
     {
@@ -1958,6 +2055,20 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         instruction->opcode = OP_CALL_FUNC;
         strcpy((instruction->label).label_name, param_1);
         *pc += 1/*opcode*/ + 4/*disp*/;
+    }
+    else if (strcasecmp(operation, "loop") == 0)
+    {
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        position = skip_spaces(position, end_pointer);
+        int res = sscanf(position, "%s", param_1);
+        if (res != 1)
+        {
+            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing jmp\n");
+            abort();
+        }
+        instruction->opcode = OP_LOOP_LABEL;
+        strcpy((instruction->label).label_name, param_1);
+        *pc += 1/*opcode*/ + 1/*rel8*/;
     }
     else 
     {
@@ -2651,6 +2762,11 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
             return 0xE8;
             break;
         }
+        case OP_LOOP_LABEL:
+        {
+            return 0xE2;
+            break;
+        }
         default:
         {
             fprintf(stderr, "Error! It is unknown opcode\n");
@@ -2704,7 +2820,15 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                 pointer_in_buffer_cmds++;
                 buffer_of_commands_size += 1;
             }
-            if (instruction->size_of_imm_data == SIZE_IMM_64)
+            if (register_ > 7)
+            {
+                register_ -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (instruction->size_of_imm_data == SIZE_IMM_64)
             {      
                 //Prefix REX
                 *pointer_in_buffer_cmds = 0x48;
@@ -2733,7 +2857,27 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             }
 
             uint8_t opcode = get_binary_code_of_operation(instruction);
-            if (((instruction->register_dest).type == TYPE_X64) && (instruction->register_source).type == TYPE_X64)
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (((instruction->register_dest).type == TYPE_X64) && (instruction->register_source).type == TYPE_X64)
             {     
                 //Prefix REX
                 *pointer_in_buffer_cmds = 0x48;
@@ -2760,21 +2904,29 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_MOV_REG_LABEL)
         {
-            if (!(instruction->register_dest.register_x8 == AH ||
-                  instruction->register_dest.register_x8 == BH ||
-                  instruction->register_dest.register_x8 == CH ||
-                  instruction->register_dest.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (!(instruction->register_dest.register_x8 == AH ||
+                       instruction->register_dest.register_x8 == BH ||
+                       instruction->register_dest.register_x8 == CH ||
+                       instruction->register_dest.register_x8 == DH))
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
 
             //for ||mov reg, lebale|| opcode = 0xB8
@@ -2788,20 +2940,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_MOV_REG_ADDRESS_REG)
         {
-            if (!(instruction->register_dest.register_x8 == AH   ||
-                  instruction->register_dest.register_x8 == BH   ||
-                  instruction->register_dest.register_x8 == CH   ||
-                  instruction->register_dest.register_x8 == DH   ||
-                  instruction->register_source.register_x8 == AH ||
-                  instruction->register_source.register_x8 == BH ||
-                  instruction->register_source.register_x8 == CH ||
-                  instruction->register_source.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -2813,6 +2951,40 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (!(instruction->register_dest.register_x8 == AH   ||
+                       instruction->register_dest.register_x8 == BH   ||
+                       instruction->register_dest.register_x8 == CH   ||
+                       instruction->register_dest.register_x8 == DH   ||
+                       instruction->register_source.register_x8 == AH ||
+                       instruction->register_source.register_x8 == BH ||
+                       instruction->register_source.register_x8 == CH ||
+                       instruction->register_source.register_x8 == DH))
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -2838,7 +3010,15 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
             }
-            if ((instruction->register_dest).type == TYPE_X64)
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
             {      
                 //Prefix REX
                 *pointer_in_buffer_cmds = 0x48;
@@ -2868,7 +3048,23 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         else if (instruction->opcode == OP_MOV_MEMORY_IMM)
         {
             //printf("imm = %lu\n", instruction->imm);
-            if ((instruction->register_dest).type == TYPE_X64 || (instruction->label).size_of_data == sizeof(uint64_t))
+            bool do_smaller = false;
+            if (((instruction->register_dest).register_x8 > 7 ||
+                (instruction->register_dest).register_x16 > 7 ||
+                (instruction->register_dest).register_x32 > 7 ||
+                (instruction->register_dest).register_x64 > 7) &&
+                (instruction->register_dest).register_x8  < 16 &&
+                (instruction->register_dest).register_x16 < 16 &&
+                (instruction->register_dest).register_x32 < 16 &&
+                (instruction->register_dest).register_x64 < 16)
+            {
+                do_smaller = true;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64 || (instruction->label).size_of_data == sizeof(uint64_t))
             {      
                 //Prefix REX
                 *pointer_in_buffer_cmds = 0x48;
@@ -2902,6 +3098,10 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                     fprintf(stderr, "Error! This is not a register\n");
                     abort();
                 }
+                if (do_smaller)
+                {
+                    register_ -= 8;
+                }
                 uint8_t opcode = get_binary_code_of_operation(instruction);
                 if ((instruction->register_dest).type == TYPE_X16)
                 {
@@ -2930,7 +3130,31 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         else if (instruction->opcode == OP_MOV_MEMORY_REG)
         {
             //printf("imm = %lu\n", instruction->imm);
-            if (((instruction->register_dest).type == TYPE_X64 && (instruction->register_source).type == TYPE_X64) 
+            bool do_smaller = false;
+            if ((((instruction->register_dest).register_x8 > 7 ||
+                (instruction->register_dest).register_x16 > 7 ||
+                (instruction->register_dest).register_x32 > 7 ||
+                (instruction->register_dest).register_x64 > 7) &&
+                (instruction->register_dest).register_x8  < 16 &&
+                (instruction->register_dest).register_x16 < 16 &&
+                (instruction->register_dest).register_x32 < 16 &&
+                (instruction->register_dest).register_x64 < 16) ||
+                (((instruction->register_source).register_x8 > 7 ||
+                (instruction->register_source).register_x16  > 7 ||
+                (instruction->register_source).register_x32  > 7 ||
+                (instruction->register_source).register_x64  > 7) &&
+                (instruction->register_source).register_x8  < 16  &&
+                (instruction->register_source).register_x16 < 16  &&
+                (instruction->register_source).register_x32 < 16  &&
+                (instruction->register_source).register_x64 < 16))
+            {
+                do_smaller = true;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (((instruction->register_dest).type == TYPE_X64 && (instruction->register_source).type == TYPE_X64) 
                   || (instruction->label).size_of_data == sizeof(uint64_t))
             {      
                 //Prefix REX
@@ -2945,6 +3169,10 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                 {
                     fprintf(stderr, "Error! This is not a register\n");
                     abort();
+                }
+                if (do_smaller)
+                {
+                    register_source -= 8;
                 }
                 uint8_t opcode = get_binary_code_of_operation(instruction);
                 if ((instruction->register_source).type == TYPE_X16)
@@ -2980,6 +3208,22 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                     fprintf(stderr, "Error! This is not a register\n");
                     abort();
                 }
+                if (do_smaller)
+                {
+                    if (register_dest > 7 && register_source > 7)
+                    {
+                        register_dest -= 8;
+                        register_source -= 8;
+                    }
+                    else if (register_dest > 7)
+                    {
+                        register_dest -= 8;
+                    }
+                    else if (register_source > 7)
+                    {
+                        register_source -= 8;
+                    }
+                }
                 uint8_t opcode = get_binary_code_of_operation(instruction);
                 if ((instruction->register_dest).type == TYPE_X32)
                 {
@@ -3006,20 +3250,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_REG)
         {
-            if (!(instruction->register_dest.register_x8 == AH   ||
-                  instruction->register_dest.register_x8 == BH   ||
-                  instruction->register_dest.register_x8 == CH   ||
-                  instruction->register_dest.register_x8 == DH   ||
-                  instruction->register_source.register_x8 == AH ||
-                  instruction->register_source.register_x8 == BH ||
-                  instruction->register_source.register_x8 == CH ||
-                  instruction->register_source.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -3032,6 +3262,41 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
             }
+            if ((register_dest > 7  && register_dest < 16) ||
+                (register_source > 7  && register_source < 16))
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (!(instruction->register_dest.register_x8 == AH   ||
+                       instruction->register_dest.register_x8 == BH   ||
+                       instruction->register_dest.register_x8 == CH   ||
+                       instruction->register_dest.register_x8 == DH   ||
+                       instruction->register_source.register_x8 == AH ||
+                       instruction->register_source.register_x8 == BH ||
+                       instruction->register_source.register_x8 == CH ||
+                       instruction->register_source.register_x8 == DH))
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
             *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x8D;//Opcode of ||lea||
             pointer_in_buffer_cmds++;
             uint8_t modrm = 0x00;//mod = 00b - mode r/m
@@ -3043,21 +3308,29 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_LABEL)
         {
-            if (!(instruction->register_dest.register_x8 == AH ||
-                  instruction->register_dest.register_x8 == BH ||
-                  instruction->register_dest.register_x8 == CH ||
-                  instruction->register_dest.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (!(instruction->register_dest.register_x8 == AH ||
+                       instruction->register_dest.register_x8 == BH ||
+                       instruction->register_dest.register_x8 == CH ||
+                       instruction->register_dest.register_x8 == DH))
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x8D;//Opcode of ||lea||
             pointer_in_buffer_cmds++;
@@ -3074,20 +3347,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_XOR_REG_REG)
         {
-            if (!(instruction->register_dest.register_x8 == AH   ||
-                  instruction->register_dest.register_x8 == BH   ||
-                  instruction->register_dest.register_x8 == CH   ||
-                  instruction->register_dest.register_x8 == DH   ||
-                  instruction->register_source.register_x8 == AH ||
-                  instruction->register_source.register_x8 == BH ||
-                  instruction->register_source.register_x8 == CH ||
-                  instruction->register_source.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -3100,6 +3359,40 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
             }
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if (!(instruction->register_dest.register_x8 == AH   ||
+                       instruction->register_dest.register_x8 == BH   ||
+                       instruction->register_dest.register_x8 == CH   ||
+                       instruction->register_dest.register_x8 == DH   ||
+                       instruction->register_source.register_x8 == AH ||
+                       instruction->register_source.register_x8 == BH ||
+                       instruction->register_source.register_x8 == CH ||
+                       instruction->register_source.register_x8 == DH))
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
             *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x31;
             pointer_in_buffer_cmds++;
             uint8_t modrm = 0xC0;//mod = 11b - register mode
@@ -3111,18 +3404,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_ADD_REG_IMM)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3145,13 +3446,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_ADD_REG_REG)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -3163,6 +3457,33 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3182,18 +3503,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_SUB_REG_IMM)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3217,13 +3546,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_SUB_REG_REG)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -3235,6 +3557,33 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3254,18 +3603,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_MUL_REG)
         {
-            if ((instruction->register_source).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_source > 7)
+            {
+                register_source -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_source).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_source).type == TYPE_X16)
@@ -3283,13 +3640,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_IMUL_REG_REG)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -3301,6 +3651,33 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3322,18 +3699,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_DIV_REG)
         {
-            if ((instruction->register_source).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_source > 7)
+            {
+                register_source -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_source).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_source).type == TYPE_X16)
@@ -3351,18 +3736,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_IDIV_REG)
         {
-            if ((instruction->register_source).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_source > 7)
+            {
+                register_source -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_source).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_source).type == TYPE_X16)
@@ -3387,6 +3780,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
             }
+            if (register_source > 7)
+            {
+                register_source -= 8;
+                *pointer_in_buffer_cmds = 0x41;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
             *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction) + (register_source & 0x7);
             pointer_in_buffer_cmds++;
             buffer_of_commands_size += 1;
@@ -3395,11 +3795,18 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         {
             //printf("index = %lu\n", index);
             //printf("register = %d\n", instruction->register_dest);
-            int register_dest = get_reg_for_code(&(instruction->register_source));
+            int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 1;
+                *pointer_in_buffer_cmds = 0x41;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction) + (register_dest & 0x7);
             pointer_in_buffer_cmds++;
@@ -3407,18 +3814,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_INC_REG)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3436,18 +3851,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_DEC_REG)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3465,18 +3888,26 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_CMP_REG_IMM)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7)
+            {
+                register_dest -= 8;
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3499,13 +3930,6 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_CMP_REG_REG)
         {
-            if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
@@ -3517,6 +3941,33 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 fprintf(stderr, "Error! This is not a register\n");
                 abort();
+            }
+            if (register_dest > 7 || register_source > 7)
+            {
+                if (register_dest > 7 && register_source > 7)
+                {
+                    register_dest -= 8;
+                    register_source -= 8;
+                }
+                else if (register_dest > 7)
+                {
+                    register_dest -= 8;
+                }
+                else if (register_source > 7)
+                {
+                    register_source -= 8;
+                }
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x49;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
+            }
+            else if ((instruction->register_dest).type == TYPE_X64)
+            {      
+                //Prefix REX
+                *pointer_in_buffer_cmds = 0x48;
+                pointer_in_buffer_cmds++;
+                buffer_of_commands_size += 1/*REX*/;
             }
             uint8_t opcode = get_binary_code_of_operation(instruction);
             if ((instruction->register_dest).type == TYPE_X16)
@@ -3597,17 +4048,31 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             memcpy(pointer_in_buffer_cmds, &zero, 4);
             pointer_in_buffer_cmds += 4;
             buffer_of_commands_size += 1 + 4;
-            // for (size_t id = 0; id < (binary_struct->count_of_functions); ++id)
-            // {
-            //     if (strcasecmp((instruction->label).label_name, (binary_struct->all_functions)[id].name) == 0)
-            //     {
-            //         (instruction->label).pc = (binary_struct->all_functions)[id].begin_offset;
-            //         break;
-            //     }
-            // }
             size_t offset = instruction->pc + 1;
             //printf("offset = %lu\n", offset);
             add_relocation(binary_struct, offset, (instruction->label).label_name, R_X86_64_PC32, -4);
+        }
+        else if (instruction->opcode == OP_LOOP_LABEL)
+        {
+            *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
+            pointer_in_buffer_cmds++;
+            struct Label label = get_label(commands, (instruction->label).label_name, SECTION_TEXT);
+            if (strlen(label.label_name) == 0)
+            {
+                *pointer_in_buffer_cmds = 0x00;
+                pointer_in_buffer_cmds++;
+                (instruction->label).label_before_use = false;
+                (instruction->label).imm_data = buffer_of_commands_size;
+            }
+            else
+            {
+                //printf("instruction->pc = %lu\n", instruction->pc);
+                //printf("address_of_jump = %d\n", (label.pc - instruction->pc));
+                *pointer_in_buffer_cmds = (label.pc - instruction->pc) - 2;
+                pointer_in_buffer_cmds++;
+                (instruction->label).label_before_use = true;
+            }
+            buffer_of_commands_size += 2;
         }
     }
     binary_struct->len_buffer_of_text_commands = buffer_of_commands_size;
