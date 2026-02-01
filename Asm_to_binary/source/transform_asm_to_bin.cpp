@@ -46,9 +46,9 @@ static struct Register get_register(const char *register_name);
 static bool check_if_unknown_register(struct Register *register_);
 static int get_reg_for_code(struct Register *register_);
 static Initial_instructions get_initial_instruction(const char *instruction);
-static void add_label(struct Data_CMDS *commands, const char *label_name, int32_t pc, Sections section, size_t size_of_data, Type_of_label type, int64_t imm_data, bool label_before_use);
-static int find_label_and_change_it(struct Data_CMDS *commands, const char *label_name, size_t size_of_data, Sections section, Type_of_label type, int64_t imm_data, Type_of_data type_of_data, int pc);
-static struct Label get_label(struct Data_CMDS *commands, const char *label_name, Sections section);
+static void add_label(struct Data_CMDS *commands, const char *label_name, int32_t pc, Sections section, size_t size_of_data, Type_of_label type, int64_t imm_data, bool label_before_use, Type_of_jmp_label type_of_jmp_label, const char *real_label_name);
+static int find_label_and_change_it(struct Data_CMDS *commands, const char *label_name, size_t size_of_data, Sections section, Type_of_label type, int64_t imm_data, Type_of_data type_of_data, int pc, Type_of_jmp_label type_of_jmp_label, const char *scope);
+static struct Label get_label(struct Data_CMDS *commands, const char *label_name, Sections section, const char *scope);
 static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_file *binary_struct);
 static void encode_data_instructions(struct Data_CMDS *commands, struct Binary_file *binary_struct);
 static bool check_if_function(struct Binary_file *binary_struct, const char *label_name);
@@ -56,7 +56,7 @@ static bool is_str_digit(const char *str);
 static bool is_str_symbol(const char *str);
 static char * skip_spaces(char *buffer, char *end_pointer);
 static void parse_section_text(struct Binary_file *binary_struct, struct Data_CMDS *commands, FILE *file_pointer_with_commands, size_t size_of_file);
-static void parse_instruction_from_text(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands);
+static void parse_instruction_from_text(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands, const char *current_function);
 static void parse_section_data(struct Binary_file *binary_struct, struct Data_CMDS *commands, FILE *file_pointer_with_commands, size_t size_of_file);
 static void parse_instruction_from_data(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands);
 static void add_relocation(struct Binary_file *binary_struct, size_t offset_in_text, const char *symbol_name, uint32_t type, int64_t additional_offset);
@@ -341,7 +341,15 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     for (size_t index = 0; index < binary_struct->size_of_text_labels; index++)
     {
         //printf("label_name = %s\n", (binary_struct->data_labels)[index].label_name);
-        (binary_struct->text_labels)[index].position_in_strtab = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), (binary_struct->text_labels)[index].label_name);
+        if ((binary_struct->text_labels)[index].type_of_jmp_label == LOCAL_LABEL)
+        {
+            (binary_struct->text_labels)[index].position_in_strtab = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), (binary_struct->text_labels)[index].real_label_name);
+        }
+        else
+        {
+            (binary_struct->text_labels)[index].position_in_strtab = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), (binary_struct->text_labels)[index].label_name);
+        }
+        
     }
     //unsigned string_name_func  = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), "func");
     const int SYM_COUNT = 3 + binary_struct->count_of_functions + binary_struct->size_of_data_labels + binary_struct->size_of_text_labels;
@@ -370,21 +378,43 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     syms[3].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
     syms[3].st_name = string_name_data;
     syms[3].st_shndx = 1;
-    // [4-...] myfunctions
+    // [4-...] myfunctions and labels
     size_t offset_in_text = 0;
     size_t index = 4;
+    int count_of_local_labels = 0;
     for (size_t id = 0; index < SYM_COUNT && id < binary_struct->size_of_text_labels; index++, id++)
     {
         size_t index_in_rel_table = 0;
         for (index_in_rel_table = 0; index_in_rel_table < (binary_struct->size_of_relocation_table); index_in_rel_table++)
         {
-            if (strcasecmp((binary_struct->text_labels)[id].label_name, (binary_struct->relocation_table)[index_in_rel_table].symbol_name) == 0)
+            if (strlen((binary_struct->text_labels)[id].real_label_name) != 0)
             {
-                (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
+                if (strcasecmp((binary_struct->text_labels)[id].real_label_name, (binary_struct->relocation_table)[index_in_rel_table].symbol_name) == 0)
+                {
+                    (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
+                }
+            }
+            else
+            {
+                if (strcasecmp((binary_struct->text_labels)[id].label_name, (binary_struct->relocation_table)[index_in_rel_table].symbol_name) == 0)
+                {
+                    (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
+                }
             }
         }
         syms[index].st_name = (binary_struct->text_labels)[id].position_in_strtab;
-        syms[index].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE);
+        //printf("(binary_struct->text_labels)[id].type_of_jmp_label = %d\n", (binary_struct->text_labels)[id].type_of_jmp_label);
+        if ((binary_struct->text_labels)[id].type_of_jmp_label == GLOBAL_LABEL)
+        {
+            //printf("global\n");
+            syms[index].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE);
+        }
+        else if ((binary_struct->text_labels)[id].type_of_jmp_label == LOCAL_LABEL)
+        {
+            //printf("local\n");
+            count_of_local_labels++;
+            syms[index].st_info = ELF64_ST_INFO(STB_LOCAL, STT_NOTYPE);
+        }
         syms[index].st_shndx = 2;
         syms[index].st_value = (binary_struct->text_labels)[id].pc;
         //printf("pc = %d\n", (binary_struct->text_labels)[id].pc);
@@ -463,7 +493,8 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     // syms[3].st_shndx = 1;    // will be .text index (we place .text as sec idx 1)
     // syms[3].st_value = 0;    // offset in .text
     // syms[3].st_size  = (Elf64_Xword)(binary_struct->len_buffer_of_commands);
-    const int LOCAL_COUNT = 4; // symbols 0..3 are local -> first non-local has index 4
+    //printf("count_of_local_labels = %d\n", count_of_local_labels);
+    const int LOCAL_COUNT = 4 + count_of_local_labels; // symbols 0..count_of_local_labels are local -> first non-local has index count_of_local_labels + 1
     // layout sections in file (indices: 0=NULL,1=.data,2=.text,3=.rela.text,4=.shstrtab,5=.symtab,6=.strtab,7=.note.GNU-stack)
     const int SHNUM = 8;
     Elf64_Shdr sh[SHNUM] = {0};
@@ -1023,7 +1054,7 @@ static Initial_instructions get_initial_instruction(const char *instruction)
     return UNKNOWN_INSTRUCTION;
 }
 
-static void add_label(struct Data_CMDS *commands, const char *label_name, int32_t pc, Sections section, size_t size_of_data, Type_of_label type, int64_t imm_data, bool label_before_use)
+static void add_label(struct Data_CMDS *commands, const char *label_name, int32_t pc, Sections section, size_t size_of_data, Type_of_label type, int64_t imm_data, bool label_before_use, Type_of_jmp_label type_of_jmp_label, const char *real_label_name)
 {
     if (commands == NULL)
     {
@@ -1040,33 +1071,45 @@ static void add_label(struct Data_CMDS *commands, const char *label_name, int32_
                 abort();
             }
         }
+        if (real_label_name != NULL)
+        {
+            strncpy(((commands->labels_data)[commands->size_of_labels_data]).real_label_name, real_label_name, strlen(real_label_name));
+        }
         strncpy(((commands->labels_data)[commands->size_of_labels_data]).label_name, label_name, strlen(label_name));
         ((commands->labels_data)[commands->size_of_labels_data]).pc = pc;
         ((commands->labels_data)[commands->size_of_labels_data]).size_of_data = size_of_data;
         ((commands->labels_data)[commands->size_of_labels_data]).type = type;
         ((commands->labels_data)[commands->size_of_labels_data]).imm_data = imm_data;
+        ((commands->labels_data)[commands->size_of_labels_data]).type_of_jmp_label = type_of_jmp_label;
         (commands->size_of_labels_data)++;
         return;
     }
-    for (size_t index = 0; index < (commands->size_of_labels_text); index++)
+    // for (size_t index = 0; index < (commands->size_of_labels_text); index++)
+    // {
+    //     if (strcasecmp(((commands->labels_text)[index]).label_name, label_name) == 0)
+    //     {
+    //         fprintf(stderr, "Dublicate label: %s\n", label_name);
+    //         abort();
+    //     }
+    // }
+    if (real_label_name != NULL)
     {
-        if (strcasecmp(((commands->labels_text)[index]).label_name, label_name) == 0)
-        {
-            fprintf(stderr, "Dublicate label: %s\n", label_name);
-            abort();
-        }
+        //printf("real_label_name at add_label = %s\n", real_label_name);
+        //snprintf(((commands->labels_text)[commands->size_of_labels_text]).real_label_name, 100, "%s", real_label_name);
+        strncpy(((commands->labels_text)[commands->size_of_labels_text]).real_label_name, real_label_name, strlen(real_label_name));
+        //printf("\nlabels_in_text[%lu].real_label_name = %s\n", commands->size_of_labels_text, ((commands->labels_text)[commands->size_of_labels_text]).real_label_name);
     }
     strncpy(((commands->labels_text)[commands->size_of_labels_text]).label_name, label_name, strlen(label_name));
     ((commands->labels_text)[commands->size_of_labels_text]).pc = pc;
     ((commands->labels_text)[commands->size_of_labels_text]).size_of_data = size_of_data;
     ((commands->labels_text)[commands->size_of_labels_text]).type = type;
     ((commands->labels_text)[commands->size_of_labels_text]).label_before_use = label_before_use;
-
+    ((commands->labels_text)[commands->size_of_labels_text]).type_of_jmp_label = type_of_jmp_label;
     (commands->size_of_labels_text)++;
     return;
 }
 
-static int find_label_and_change_it(struct Data_CMDS *commands, const char *label_name, size_t size_of_data, Sections section, Type_of_label type, int64_t imm_data, Type_of_data type_of_data, int pc)
+static int find_label_and_change_it(struct Data_CMDS *commands, const char *label_name, size_t size_of_data, Sections section, Type_of_label type, int64_t imm_data, Type_of_data type_of_data, int pc, Type_of_jmp_label type_of_jmp_label, const char *scope)
 {
     if (commands == NULL)
     {
@@ -1079,12 +1122,30 @@ static int find_label_and_change_it(struct Data_CMDS *commands, const char *labe
         {
             if (strcasecmp((commands->labels_text)[index].label_name, label_name) == 0)
             {
+                if (scope != NULL && strlen((commands->labels_text)[index].real_label_name) != 0)
+                {
+                    char scope_of_label[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                    size_t pos = 0;
+                    while (pos < MAX_LEN_FOR_STATIC_ARRAYS && (commands->labels_text)[index].real_label_name[pos] != '.')
+                    {
+                        scope_of_label[pos] = (commands->labels_text)[index].real_label_name[pos];
+                        pos++;
+                    }
+                    scope_of_label[pos] = '\0';
+                    //printf("scope_of_label = %s\n", scope_of_label);
+                    if (strcasecmp(scope, scope_of_label) != 0)
+                    {
+                        //printf("HERE\n");
+                        continue;
+                    }
+                }
+                //printf("real_label_name = %s\n", (commands->labels_text)[index].real_label_name);
                 (commands->labels_text)[index].type = type;
                 (commands->labels_text)[index].size_of_data = size_of_data;
                 (commands->labels_text)[index].imm_data = imm_data;
                 (commands->labels_text)[index].type_of_data = type_of_data;
                 (commands->labels_text)[index].pc = pc;
-                //(commands->labels_text)[index].pc += size_of_data;
+                (commands->labels_text)[index].type_of_jmp_label = type_of_jmp_label;
                 return ((commands->labels_text)[index].pc);
             }
         }
@@ -1099,6 +1160,7 @@ static int find_label_and_change_it(struct Data_CMDS *commands, const char *labe
                 (commands->labels_data)[index].size_of_data = size_of_data;
                 (commands->labels_data)[index].imm_data = imm_data;
                 (commands->labels_data)[index].type_of_data = type_of_data;
+                (commands->labels_data)[index].type_of_jmp_label = type_of_jmp_label;
                 //(commands->labels_data)[index].pc += size_of_data;
                 return ((commands->labels_data)[index].pc);
             }
@@ -1107,7 +1169,7 @@ static int find_label_and_change_it(struct Data_CMDS *commands, const char *labe
     return -1;
 }
 
-static struct Label get_label(struct Data_CMDS *commands, const char *label_name, Sections section)
+static struct Label get_label(struct Data_CMDS *commands, const char *label_name, Sections section, const char *scope)
 {
     if (commands == NULL || label_name == NULL)
     {
@@ -1116,10 +1178,31 @@ static struct Label get_label(struct Data_CMDS *commands, const char *label_name
     }
     if (section == SECTION_TEXT)
     {
+        // if (scope != NULL)
+        // {
+        //     printf("scope in get_label = %s\n", scope);
+        // }
         for (size_t index = 0; index < (commands->size_of_labels_text); index++)
         {
             if (strcasecmp((commands->labels_text)[index].label_name, label_name) == 0)
             {
+                if (scope != NULL && strlen((commands->labels_text)[index].real_label_name) != 0)
+                {
+                    char scope_of_label[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                    size_t pos = 0;
+                    while (pos < MAX_LEN_FOR_STATIC_ARRAYS && (commands->labels_text)[index].real_label_name[pos] != '.')
+                    {
+                        scope_of_label[pos] = (commands->labels_text)[index].real_label_name[pos];
+                        pos++;
+                    }
+                    scope_of_label[pos] = '\0';
+                    //printf("scope_of_label = %s\n", scope_of_label);
+                    if (strcasecmp(scope, scope_of_label) != 0)
+                    {
+                        //printf("HERE\n");
+                        continue;
+                    }
+                }
                 return ((commands->labels_text)[index]);
             }
         }
@@ -1181,16 +1264,36 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
                 bool result = check_if_function(binary_struct, new_label_name);
                 if (!result)
                 {
-                    struct Label label = get_label(commands, new_label_name, section);
+                    Type_of_jmp_label type = GLOBAL_LABEL;
+                    char real_label_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                    if (new_label_name[0] == '.')
+                    {
+                        snprintf(real_label_name, MAX_LEN_FOR_STATIC_ARRAYS, "%s", (binary_struct->all_functions)[index_of_last_function].name);
+                        snprintf(real_label_name + strlen((binary_struct->all_functions)[index_of_last_function].name), MAX_LEN_FOR_STATIC_ARRAYS - strlen((binary_struct->all_functions)[index_of_last_function].name), "%s", new_label_name);
+                        //printf("local_label = %s\n", real_label_name);
+                        type = LOCAL_LABEL;
+                    }
+                    //printf("get_label_at_parse_section_text\n\n");
+                    struct Label label = get_label(commands, new_label_name, section, (binary_struct->all_functions)[index_of_last_function].name);
+                    //printf("\n");
                     if (strlen(label.label_name) == 0)
                     {
                         //printf("text_pc = %d\n", text_pc);
-                        add_label(commands, new_label_name, text_pc, section, 0, LABEL_FOR_JMP, 0, true);
+                        add_label(commands, new_label_name, text_pc, section, 0, LABEL_FOR_JMP, 0, true, type, real_label_name);
                     }
                     else
                     {
+                        //printf("added_label = %s\n", label.label_name);
+                        //printf("added label_real_name = %s\n", label.real_label_name);
+                        //printf("real_label_name = %s\n", real_label_name);
                         //printf("text_pc_in_change_label = %d\n", text_pc);
-                        int pc = find_label_and_change_it(commands, label.label_name, label.size_of_data, section, LABEL_FOR_JMP, 0, UNKNOWN_DATA_TYPE, text_pc);
+                        char *scope = NULL;
+                        if (index_of_last_function != -1)
+                        {
+                            scope = ((binary_struct->all_functions)[index_of_last_function]).name;
+                            //printf("current_scope = %s\n", scope);
+                        }
+                        int pc = find_label_and_change_it(commands, label.label_name, label.size_of_data, section, LABEL_FOR_JMP, 0, UNKNOWN_DATA_TYPE, text_pc, type, scope);
                     }
                     continue;
                 }
@@ -1231,7 +1334,15 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
             //     //printf("pc = %d\n", pc);
             // }
             start = skip_spaces(start, end_pointer);
-            parse_instruction_from_text(start, &instruction, end_pointer, &text_pc, commands);
+            //printf("index_of_last_function = %d\n", index_of_last_function);
+            //printf("function_name = %s\n", ((binary_struct->all_functions)[index_of_last_function]).name);
+            char *scope = NULL;
+            if (index_of_last_function != -1)
+            {
+                scope = ((binary_struct->all_functions)[index_of_last_function]).name;
+                //printf("current_scope = %s\n", scope);
+            }
+            parse_instruction_from_text(start, &instruction, end_pointer, &text_pc, commands, scope);
             //printf("text_pc = %u\n", text_pc);
         }
         else
@@ -1302,9 +1413,9 @@ static void parse_section_data(struct Binary_file *binary_struct, struct Data_CM
                         start = skip_spaces(start, end_pointer);
                         start++;
                         sscanf(start, "%s", label_in_expression);
-                        struct Label label = get_label(commands, label_in_expression, SECTION_DATA);
+                        struct Label label = get_label(commands, label_in_expression, SECTION_DATA, NULL);
                         //printf("label_data_in_equ = %lu\n", label.imm_data);
-                        add_label(commands, label_name, data_pc, SECTION_DATA, label.size_of_data, CONSTANT_LABEL, label.imm_data, false);
+                        add_label(commands, label_name, data_pc, SECTION_DATA, label.size_of_data, CONSTANT_LABEL, label.imm_data, false, GLOBAL_LABEL, NULL);
                         //data_pc += label.imm_data;
                         continue;
                     }
@@ -1320,7 +1431,7 @@ static void parse_section_data(struct Binary_file *binary_struct, struct Data_CM
                 abort();
             }
             //printf("label_name = %s\n", label_name);
-            add_label(commands, label_name, data_pc, section, 0, LABEL_FOR_JMP, 0, true);
+            add_label(commands, label_name, data_pc, section, 0, LABEL_FOR_JMP, 0, true, GLOBAL_LABEL, NULL);
 
             // for (size_t id = 0; id < commands->size_of_labels_data; ++id)
             // {
@@ -1383,8 +1494,16 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
     commands.size_of_labels_text = 0;
     commands.size_of_labels_data = 0;
     get_all_functions(binary_struct, file_pointer_with_commands);
+    // for (size_t index = 0; index < (binary_struct->count_of_functions); ++index)
+    // {
+    //     printf("function_name = %s\n", (binary_struct->all_functions)[index].name);
+    // }
     parse_section_data(binary_struct, &commands, file_pointer_with_commands, size_of_file);
     parse_section_text(binary_struct, &commands, file_pointer_with_commands, size_of_file);
+    // for (size_t index = 0; index < (commands.size_of_labels_text); ++index)
+    // {
+    //     printf("label_text[%lu] = %s\n", index, (commands.labels_text)[index].real_label_name);
+    // }
     binary_struct->buffer_of_text_commands = (uint8_t *) calloc (size_of_file, sizeof(uint8_t));
     if (binary_struct->buffer_of_text_commands == NULL)
     {
@@ -1406,7 +1525,7 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
         {
             if (!(instruction->label).label_before_use)
             {
-                struct Label label = get_label(&commands, (instruction->label).label_name, SECTION_TEXT);
+                struct Label label = get_label(&commands, (instruction->label).label_name, SECTION_TEXT, NULL);
                 (binary_struct->buffer_of_text_commands)[(instruction->label).imm_data + 1] = label.pc - instruction->pc - 2;
             }
         }
@@ -1422,7 +1541,7 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
     return NO_BINARY_ERRORS;
 }
 
-static void parse_instruction_from_text(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands)
+static void parse_instruction_from_text(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands, const char *current_function)
 {
     if (position == NULL || instruction == NULL)
     {
@@ -1434,6 +1553,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
     {
         return;
     }
+    //printf("current_function = %s\n", current_function);
     instruction->pc = *pc;
     //printf("operation = %s\n", operation);
     position += strlen(operation);
@@ -1526,7 +1646,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             instruction->register_dest = get_register(param_1);
             if ((instruction->register_dest).type == UNKNOWN_REGISTER_TYPE)
             {
-                struct Label label = get_label(commands, param_1, SECTION_DATA);
+                struct Label label = get_label(commands, param_1, SECTION_DATA, NULL);
                 instruction->label = label;
             }
             if (is_digit)
@@ -1580,7 +1700,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
                 instruction->register_source = get_register(param_2);
                 if (check_if_unknown_register(&instruction->register_source))
                 {
-                    struct Label label = get_label(commands, param_2, SECTION_DATA);
+                    struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
                     
                     if (label.type == CONSTANT_LABEL)
                     {
@@ -1613,7 +1733,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             instruction->register_source = get_register(param_2);
             if (check_if_unknown_register(&instruction->register_source))
             {
-                struct Label label = get_label(commands, param_2, SECTION_DATA);
+                struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
                 instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
                 instruction->label = label;
             }
@@ -1670,7 +1790,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         instruction->register_source = get_register(param_2);
         if (check_if_unknown_register(&instruction->register_source))
         {
-            struct Label label = get_label(commands, param_2, SECTION_DATA);
+            struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
             instruction->opcode = OP_LEA_REG_ABS_ADDRESS_LABEL;
             instruction->label = label;
         }
@@ -2020,11 +2140,26 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             abort();
         }
         instruction->opcode = OP_JMP_LABEL;
-        struct Label label = get_label(commands, param_1, SECTION_TEXT);
+        //printf("get_label in parse_jmp_cmd\n\n");
+        struct Label label = get_label(commands, param_1, SECTION_TEXT, current_function);
+        //printf("\n");
         if (strlen(label.label_name) == 0)
         {
-            add_label(commands, param_1, *pc, SECTION_TEXT, 0, LABEL_FOR_JMP, 0, false);
-            label = get_label(commands, param_1, SECTION_TEXT);
+            Type_of_jmp_label type = GLOBAL_LABEL;
+            char *scope = NULL;
+            char str_for_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+            if (param_1[0] == '.')
+            {
+                type = LOCAL_LABEL;
+                snprintf(str_for_name, MAX_LEN_FOR_STATIC_ARRAYS, "%s", current_function);
+                snprintf(str_for_name + strlen(current_function), MAX_LEN_FOR_STATIC_ARRAYS - strlen(current_function), "%s", param_1);
+                scope = str_for_name;
+                //printf("scope = %s\n", scope);
+            }
+            add_label(commands, param_1, *pc, SECTION_TEXT, 0, LABEL_FOR_JMP, 0, false, type, scope);
+            //printf("get_label after added label by jmp cmd\n\n");
+            label = get_label(commands, param_1, SECTION_TEXT, current_function);
+            //printf("\n");
         }
         label.imm_data = *pc;
         instruction->label = label;
@@ -2067,6 +2202,10 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             abort();
         }
         instruction->opcode = OP_LOOP_LABEL;
+        if (param_1[0] == '.')
+        {
+            (instruction->label).type_of_jmp_label = LOCAL_LABEL;
+        }
         strcpy((instruction->label).label_name, param_1);
         *pc += 1/*opcode*/ + 1/*rel8*/;
     }
@@ -2129,11 +2268,25 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
                 fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing jmp\n");
                 abort();
             }
-            struct Label label = get_label(commands, param_1, SECTION_TEXT);
+            //printf("get_label at parse conidition jmp cmd\n\n");
+            struct Label label = get_label(commands, param_1, SECTION_TEXT, current_function);
+            //printf("\n");
             if (strlen(label.label_name) == 0)
             {
-                add_label(commands, param_1, *pc, SECTION_TEXT, 0, LABEL_FOR_JMP, 0, false);
-                label = get_label(commands, param_1, SECTION_TEXT);
+                Type_of_jmp_label type = GLOBAL_LABEL;
+                char *scope = NULL;
+                char str_for_name[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                if (param_1[0] == '.')
+                {
+                    type = LOCAL_LABEL;
+                    snprintf(str_for_name, MAX_LEN_FOR_STATIC_ARRAYS, "%s", current_function);
+                    snprintf(str_for_name + strlen(current_function), MAX_LEN_FOR_STATIC_ARRAYS - strlen(current_function), "%s", param_1);
+                    scope = str_for_name;
+                }
+                add_label(commands, param_1, *pc, SECTION_TEXT, 0, LABEL_FOR_JMP, 0, false, type, scope);
+                //printf("get_label after added label by condition jmp cmd\n\n");
+                label = get_label(commands, param_1, SECTION_TEXT, current_function);
+                //printf("\n");
             }
             label.imm_data = *pc;
             instruction->label = label;
@@ -2188,7 +2341,7 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
         (instruction->operands).numeric_operand = imm;
         (instruction->operands).type = TYPE_NUMBER;
         (instruction->label).type_of_data = NUMBER;
-        *pc = find_label_and_change_it(commands, (instruction->label).label_name, (size_t)instruction->initial_instruction, SECTION_DATA, LABEL_WITH_DATA, imm, (instruction->label).type_of_data, *pc);
+        *pc = find_label_and_change_it(commands, (instruction->label).label_name, (size_t)instruction->initial_instruction, SECTION_DATA, LABEL_WITH_DATA, imm, (instruction->label).type_of_data, *pc, GLOBAL_LABEL, NULL);
         //*pc += (size_t)instruction->initial_instruction;
         offset = (size_t)instruction->initial_instruction;
     }
@@ -2263,7 +2416,7 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
         (instruction->operands).type = TYPE_STRING;
         (instruction->label).type_of_data = BUFFER_STR;
         //printf("(instruction->label).label_name = %s\n", (instruction->label).label_name);
-        *pc = find_label_and_change_it(commands, (instruction->label).label_name, len_of_operand, SECTION_DATA, LABEL_WITH_DATA, len_of_operand, (instruction->label).type_of_data, *pc);
+        *pc = find_label_and_change_it(commands, (instruction->label).label_name, len_of_operand, SECTION_DATA, LABEL_WITH_DATA, len_of_operand, (instruction->label).type_of_data, *pc, GLOBAL_LABEL, NULL);
         //*pc += len_of_operand;
         offset = len_of_operand;
     }
@@ -2361,6 +2514,7 @@ static void add_relocation(struct Binary_file *binary_struct, size_t offset_in_t
     rel->additional_offset = additional_offset;
     strncpy(rel->symbol_name, symbol_name, sizeof(rel->symbol_name) - 1);
     rel->symbol_name[sizeof(rel->symbol_name) - 1] = '\0';
+    //printf("rel->symbol_name = %s\n", rel->symbol_name);
     (binary_struct->size_of_relocation_table)++;
     return;
 }
@@ -2789,10 +2943,15 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
     {
         //printf("label_name = %s\n", (commands->labels_data)[index].label_name);
         strcpy((binary_struct->text_labels)[index].label_name, (commands->labels_text)[index].label_name);
+        if ((commands->labels_text)[index].real_label_name != NULL)
+        {
+            strcpy((binary_struct->text_labels)[index].real_label_name, (commands->labels_text)[index].real_label_name);
+        }
         (binary_struct->text_labels)[index].imm_data = (commands->labels_text)[index].imm_data;
         (binary_struct->text_labels)[index].pc = (commands->labels_text)[index].pc;
         (binary_struct->text_labels)[index].size_of_data = (commands->labels_text)[index].size_of_data;
         (binary_struct->text_labels)[index].type = (commands->labels_text)[index].type;
+        (binary_struct->text_labels)[index].type_of_jmp_label = (commands->labels_text)[index].type_of_jmp_label;
     }
     size_t buffer_of_commands_size = 0;
     for (size_t index = 0; index < (commands->size_of_instructions); index++)
@@ -4023,7 +4182,14 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             {
                 offset += 2;
             }
-            add_relocation(binary_struct, offset, (instruction->label).label_name, R_X86_64_PC32, -4);
+            if (strlen((instruction->label).real_label_name) != 0)
+            {
+                add_relocation(binary_struct, offset, (instruction->label).real_label_name, R_X86_64_PC32, -4);
+            }
+            else
+            {
+                add_relocation(binary_struct, offset, (instruction->label).label_name, R_X86_64_PC32, -4);
+            }
         }
         else if (instruction->opcode == OP_SYSCALL)
         {
@@ -4056,7 +4222,21 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         {
             *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
             pointer_in_buffer_cmds++;
-            struct Label label = get_label(commands, (instruction->label).label_name, SECTION_TEXT);
+            char *scope = NULL;
+            if (strlen((instruction->label).real_label_name) != 0)
+            {
+                char scope_of_label[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                size_t pos = 0;
+                while (pos < MAX_LEN_FOR_STATIC_ARRAYS && ((instruction->label).real_label_name)[pos] != '.')
+                {
+                    scope_of_label[pos] = ((instruction->label).real_label_name)[pos];
+                    pos++;
+                }
+                scope_of_label[pos] = '\0';
+                scope = scope_of_label;
+            }
+
+            struct Label label = get_label(commands, (instruction->label).label_name, SECTION_TEXT, scope);
             if (strlen(label.label_name) == 0)
             {
                 *pointer_in_buffer_cmds = 0x00;

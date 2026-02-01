@@ -264,6 +264,13 @@ enum Type_of_label
     FUNCTION        = 4
 };
 
+enum Type_of_jmp_label
+{
+    UNKNOWN_JMP_LABEL = 0,
+    GLOBAL_LABEL      = 1,
+    LOCAL_LABEL       = 2
+};
+
 enum Type_of_data
 {
     UNKNOWN_DATA_TYPE = 0,
@@ -290,6 +297,8 @@ struct Label
     unsigned position_in_strtab;
     Type_of_data type_of_data;
     bool label_before_use;
+    Type_of_jmp_label type_of_jmp_label;
+    char real_label_name[100];
 };
 
 struct Instruction
