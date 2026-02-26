@@ -104,7 +104,8 @@ enum Opcode
     OP_JNE_LABEL                 = 33,
     OP_CALL_FUNC                 = 34,
     OP_RET                       = 35,
-    OP_LOOP_LABEL                = 36
+    OP_LOOP_LABEL                = 36,
+    OP_MOVSD_REG_REG             = 37
 };
 
 enum Jmp_cmds
@@ -202,22 +203,45 @@ enum Register_x64
     UNKNOWN_REGISTER_X64 = 16
 };
 
+enum Register_double
+{
+    XMM0                    = 0,
+    XMM1                    = 1,
+    XMM2                    = 2,
+    XMM3                    = 3,
+    XMM4                    = 4,
+    XMM5                    = 5,
+    XMM6                    = 6,
+    XMM7                    = 7,
+    XMM8                    = 8,
+    XMM9                    = 9,
+    XMM10                   = 10,
+    XMM11                   = 11,
+    XMM12                   = 12,
+    XMM13                   = 13,
+    XMM14                   = 14,
+    XMM15                   = 15,
+    UNKNOWN_REGISTER_DOUBLE = 16
+};
+
 enum Register_type
 {
     UNKNOWN_REGISTER_TYPE = 0,
     TYPE_X8               = 1,
     TYPE_X16              = 2,
     TYPE_X32              = 3,
-    TYPE_X64              = 4
+    TYPE_X64              = 4,
+    TYPE_DOUBLE           = 5
 };
 
 struct Register
 {
-    Register_type type;
-    Register_x8  register_x8;
-    Register_x16 register_x16;
-    Register_x32 register_x32;
-    Register_x64 register_x64;
+    Register_type   type;
+    Register_x8     register_x8;
+    Register_x16    register_x16;
+    Register_x32    register_x32;
+    Register_x64    register_x64;
+    Register_double register_double;
 };
 
 enum Sections
@@ -301,6 +325,37 @@ struct Label
     char real_label_name[100];
 };
 
+
+struct Encoded_RM 
+{
+    uint8_t rex;
+    uint8_t modrm;
+    uint8_t sib;
+    bool has_sib;
+    int disp_size;
+    int32_t disp;
+};
+
+enum Additional_info_type
+{
+    UNKNOWN_ADDITIONAL_INFO_TYPE = 0,
+    BYTE                         = 1,
+    QWORD                        = 2
+};
+
+struct Expression_type
+{
+    bool has_base;
+    bool has_index;
+    bool has_label;
+    Register base;
+    Register index;
+    Label label;
+    int scale;
+    int32_t disp;
+    Additional_info_type additional_info_type;
+};
+
 struct Instruction
 {
     Initial_instructions initial_instruction;
@@ -314,6 +369,7 @@ struct Instruction
     int32_t pc;//offset of this instruction in bytes from start point
     int64_t address;
     Size_of_imm size_of_imm_data;
+    Expression_type expression;
 };
 
 

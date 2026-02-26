@@ -65,6 +65,19 @@ static FILE * preprocess_programm_from_source(FILE *file_pointer);
 static Size_of_imm get_size_of_imm(int64_t imm);
 static Size_of_imm get_size_of_imm_for_parse(Instruction *instruction);
 static int cmp(const void *a, const void *b);
+static struct Encoded_RM encode_mem64(struct Mem_Addr source, int register_dest);
+static void parse_expression(struct Instruction *instruction, const char *expression, struct Data_CMDS *commands, const char *current_function);
+static void encode_cmd_with_memory_expression(struct Instruction *instruction, uint8_t *pointer_on_buffer_of_cmds, size_t *buffer_commands_size, struct Binary_file *binary_struct);
+static bool is_correct_symbol(const char symbol);
+
+static bool is_correct_symbol(const char symbol)
+{
+    if (isalnum(symbol) || symbol == '+' || symbol == '-' || symbol == '*' || symbol == '/')
+    {
+        return true;
+    }
+    return false;
+}
 
 static Size_of_imm get_size_of_imm_for_parse(Instruction *instruction)
 {
@@ -86,6 +99,14 @@ static Size_of_imm get_size_of_imm_for_parse(Instruction *instruction)
         {
             return SIZE_IMM_64;
         }
+    }
+    if ((instruction->expression).additional_info_type == BYTE)
+    {
+        return SIZE_IMM_8;
+    }
+    else if ((instruction->expression).additional_info_type == QWORD)
+    {
+        return SIZE_IMM_32;
     }
     return UNKNOWN_IMM;
 }
@@ -266,9 +287,9 @@ Errors_of_binary transform_asm_to_binary(FILE *file_pointer)
         return error;
     }
     qsort((binary_struct.all_functions), (binary_struct.count_of_functions), sizeof(struct Function_type), cmp);
-    // for (size_t id = 0; id < binary_struct.size_of_text_labels; ++id)
+    // for (size_t id = 0; id < binary_struct.size_of_data_labels; ++id)
     // {
-    //     printf("label_name = %s\n", (binary_struct.text_labels)[id].label_name);
+    //     printf("label_name = %s\n", (binary_struct.data_labels)[id].label_name);
     // }
     // binary_struct.buffer_of_commands = (uint8_t *) calloc (50, sizeof(uint8_t));
     // binary_struct.len_buffer_of_commands = 50;
@@ -352,7 +373,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         
     }
     //unsigned string_name_func  = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), "func");
-    const int SYM_COUNT = 3 + binary_struct->count_of_functions + binary_struct->size_of_data_labels + binary_struct->size_of_text_labels;
+    const int SYM_COUNT = 4 + binary_struct->count_of_functions + binary_struct->size_of_data_labels + binary_struct->size_of_text_labels;
     //printf("SYM_COUNT = %d\n", SYM_COUNT);
     Elf64_Sym *syms = (Elf64_Sym *) calloc (SYM_COUNT, sizeof(Elf64_Sym));
     if (syms == NULL)
@@ -459,11 +480,15 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
         syms[index].st_size = (Elf64_Xword)(binary_struct->all_functions)[id_in_all_func].offset_in_text;
         offset_in_text = (binary_struct->all_functions)[id_in_all_func].offset_in_text;
     }
+    //printf("binary_struct->size_of_data_labels = %lu\n", binary_struct->size_of_data_labels);
     for (size_t id = 0; index < SYM_COUNT && id < binary_struct->size_of_data_labels; index++, id++)
     {
+        //printf("id = %lu\nindex = %lu\n", id, index);
         size_t index_in_rel_table = 0;
+        //printf("data_label_name = %s\n", (binary_struct->data_labels)[id].label_name);
         for (index_in_rel_table = 0; index_in_rel_table < (binary_struct->size_of_relocation_table); index_in_rel_table++)
         {
+            //printf("(binary_struct->relocation_table)[index_in_rel_table].symbol_name = %s\n", (binary_struct->relocation_table)[index_in_rel_table].symbol_name);
             if (strcasecmp((binary_struct->data_labels)[id].label_name, (binary_struct->relocation_table)[index_in_rel_table].symbol_name) == 0)
             {
                 (binary_struct->relocation_table)[index_in_rel_table].symbol_index = index;
@@ -480,6 +505,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
             syms[index].st_shndx = 1;
         }
         syms[index].st_value = (binary_struct->data_labels)[id].pc;
+        //printf("syms[%lu].st_value = %lu\n", index, (binary_struct->data_labels)[id].pc);
         syms[index].st_size = (Elf64_Xword)(binary_struct->data_labels)[id].size_of_data;
         //printf("(binary_struct->size_of_relocation_table) = %lu\n", (binary_struct->size_of_relocation_table));
         if (index_in_rel_table == (binary_struct->size_of_relocation_table))
@@ -671,6 +697,7 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     for (size_t index_in_rela = 0; index_in_rela < binary_struct->size_of_relocation_table; index_in_rela++)
     {
         Elf64_Rela rela = {0};
+        //printf("offset_in_text = %lu\n", (binary_struct->relocation_table)[index_in_rela].offset_in_text);
         rela.r_offset = (Elf64_Addr)(binary_struct->relocation_table)[index_in_rela].offset_in_text;
         //printf("sym.st_name[%lu] = %u\n", (binary_struct->relocation_table)[index].symbol_index, syms[(binary_struct->relocation_table)[index].symbol_index].st_name);
         //printf("symbol_name = %s\nsymbol_index = %d\n", (binary_struct->relocation_table)[index].symbol_name, (binary_struct->relocation_table)[index].symbol_index);
@@ -1116,6 +1143,7 @@ static int find_label_and_change_it(struct Data_CMDS *commands, const char *labe
         fprintf(stderr, "\x1b[31mError!\x1b[0m There is no data commands\n");
         abort();
     }
+    //printf("label_name in find_label_and_change_it = %s\n", label_name);
     if (section == SECTION_TEXT)
     {
         for (size_t index = 0; index < (commands->size_of_labels_text); index++)
@@ -1350,6 +1378,10 @@ static void parse_section_text(struct Binary_file *binary_struct, struct Data_CM
             fprintf(stderr, "Error! Error of processing string at section .text\n");
             abort();
         }
+        if (index_of_last_function != -1)
+        {
+            ((binary_struct->all_functions)[index_of_last_function]).offset_in_text = text_pc;
+        }
         commands->instructions[commands->size_of_instructions++] = instruction;
         if (commands->size_of_instructions >= size_of_file)
         {
@@ -1541,6 +1573,139 @@ static Errors_of_binary create_bin_data_for_binary_file(struct Binary_file *bina
     return NO_BINARY_ERRORS;
 }
 
+static void parse_expression(struct Instruction *instruction, const char *expression, struct Data_CMDS *commands, const char *current_function)
+{
+    if (instruction == NULL || expression == NULL)
+    {
+        fprintf(stderr, "Error! There is impossible to parse exp\n");
+        abort();
+    }
+    (instruction->expression).base.register_x8 = UNKNOWN_REGISTER_X8;
+    (instruction->expression).base.register_x16 = UNKNOWN_REGISTER_X16;
+    (instruction->expression).base.register_x32 = UNKNOWN_REGISTER_X32;
+    (instruction->expression).base.register_x64 = UNKNOWN_REGISTER_X64;
+    (instruction->expression).index.register_x8 = UNKNOWN_REGISTER_X8;
+    (instruction->expression).index.register_x16 = UNKNOWN_REGISTER_X16;
+    (instruction->expression).index.register_x32 = UNKNOWN_REGISTER_X32;
+    (instruction->expression).index.register_x64 = UNKNOWN_REGISTER_X64;
+    char base_or_label[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+    sscanf(expression, "%s", base_or_label);
+    // printf("base_or_label = %s\n", base_or_label);
+    Register reg = get_register(base_or_label);
+    if (reg.type == UNKNOWN_REGISTER_TYPE)
+    {
+        struct Label label = get_label(commands, base_or_label, SECTION_DATA, current_function);
+        if (strlen(label.label_name) != 0)
+        {
+            (instruction->expression).has_base = false;
+            (instruction->expression).has_label = true;
+            (instruction->expression).label = label;
+        }
+        else
+        {
+            fprintf(stderr, "Error! Unknown base_type in memory expression\n");
+            abort();
+        }
+    }
+    else
+    {
+        (instruction->expression).has_base = true;
+        (instruction->expression).has_label = false;
+        (instruction->expression).base = reg;
+    }
+    expression += strlen(base_or_label);
+    char arithmetic_operation = '\0';
+
+    if (*expression != '\0')
+    {
+        while (*expression != '\0' && !is_correct_symbol(*expression))
+        {
+            expression++;
+        }
+        if (!isalnum(*expression))
+        {
+            arithmetic_operation = *expression;
+            //printf("arithmetic_operation = %c\n", arithmetic_operation);
+            expression++;
+            while (*expression != '\0' && !is_correct_symbol(*expression))
+            {
+                expression++;
+            }
+        }
+        if (isalpha(*expression))
+        {
+            arithmetic_operation = '\0';
+            char index[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+            sscanf(expression, "%s", index);
+            //printf("index = %s\n", index);
+            Register source = get_register(index);
+            if (source.type == UNKNOWN_REGISTER_TYPE)
+            {
+                fprintf(stderr, "Error! Unknown index in memory expression\n");
+                abort();
+            }
+            (instruction->expression).has_index = true;
+            (instruction->expression).index = source;
+            expression += strlen(index);
+            if (*expression != '\0')
+            {
+                while (*expression != '\0' && !is_correct_symbol(*expression))
+                {
+                    expression++;
+                }
+                if (*expression == '*')
+                {
+                    expression++;
+                    while (*expression != '\0' && !is_correct_symbol(*expression))
+                    {
+                        expression++;
+                    }
+                    char line[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+                    sscanf(expression, "%s", line);
+                    (instruction->expression).scale = atoi(line);
+                    //printf("scale = %s\n", line);
+                    expression += strlen(line);
+                    while (*expression != '\0' && !is_correct_symbol(*expression))
+                    {
+                        expression++;
+                    }
+                    //printf("*expression = %c\n", *expression);
+                }
+            }
+            if (!isalnum(*expression))
+            {
+                arithmetic_operation = *expression;
+                //printf("arithmetic_operation = %c\n", arithmetic_operation);
+                expression++;
+                while (*expression != '\0' && !is_correct_symbol(*expression))
+                {
+                    expression++;
+                }
+            }
+        }
+        if (isdigit(*expression))
+        {
+            char line[MAX_LEN_FOR_STATIC_ARRAYS] = "";
+            sscanf(expression, "%s", line);
+            //printf("line = %s\n", line);
+            (instruction->expression).disp = (arithmetic_operation != '-' ? (int32_t)atoi(line) : (-1) * (int32_t)atoi(line));
+            expression += strlen(line);
+            expression++;
+            if (*expression != '\0')
+            {
+                fprintf(stderr, "Error! There is no close bracket after memory expression\n");
+                abort();
+            }
+        }
+        else if (*expression != '\0')
+        {
+            fprintf(stderr, "Error! There is no close bracket after memory expression\n");
+            abort();
+        }
+    }
+    return;
+}
+
 static void parse_instruction_from_text(char *position, struct Instruction *instruction, char *end_pointer, int32_t *pc, struct Data_CMDS *commands, const char *current_function)
 {
     if (position == NULL || instruction == NULL)
@@ -1561,17 +1726,65 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
     {
         char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        size_t pos_in_param = 0;
         position = skip_spaces(position, end_pointer);
-        int res = sscanf(position, "%7[^,]", param_1);
-        position += strlen(param_1);
-        position += 2;
-        res += sscanf(position, "%s", param_2);
-        //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
-        if (res != 2)
+        char additional_info[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char *old_position = position;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && *position != ' ')
         {
-            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
-            abort();
+            //printf("pos_in_param = %lu\n", pos_in_param);
+            //printf("*position = %c\n", *position);
+            additional_info[pos_in_param++] = *position;
+            position++;
         }
+        additional_info[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        if (strcasecmp(additional_info, "byte") == 0)
+        {
+            (instruction->expression).additional_info_type = BYTE;
+        }
+        else if (strcasecmp(additional_info, "qword") == 0)
+        {
+            (instruction->expression).additional_info_type = QWORD;
+        }
+        else
+        {
+            position = old_position;
+        }
+        pos_in_param = 0;
+        //int res = sscanf(position, "%7[^,]", param_1);
+        //int res = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            //printf("pos_in_param = %lu\n", pos_in_param);
+            //printf("*position = %c\n", *position);
+            param_1[pos_in_param++] = *position;
+            position++;
+        }
+        param_1[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        //res += pos_in_param;
+        // position += strlen(param_1);
+        // position += 2;
+        pos_in_param = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            param_2[pos_in_param++] = *position;
+            position++;
+        }
+        param_2[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        // res += pos_in_param;
+        // //res += sscanf(position, "%s", param_2);
+        //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
+        // if (res != 2)
+        // {
+        //     fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
+        //     abort();
+        // }
         bool is_addr_second_arg = false;
         bool is_addr_first_arg  = false;
         if (param_2[0] == '[')
@@ -1579,52 +1792,65 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             is_addr_second_arg = true;
             size_t index = 0;
             char new_param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            size_t pos_in_new_param_2 = 0;
             while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
             {
                 index++;
             }
-            if (index + 2 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] == 'r' && param_2[index + 1] == 'e' && param_2[index + 2] == 'l')
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index + 1] == 'r' && param_2[index + 2] == 'e' && param_2[index + 3] == 'l')
             {
-                printf("it is relative offset! WIP\n");
-                abort();
-            }
-            else
-            {
-                index = 1;
-                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']')
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
                 {
-                    new_param_2[index - 1] = param_2[index];
                     index++;
+                }
+            }
+            // else
+            // {
+                //index = 1;
+                if (index == 0)
+                {
+                    index++;
+                }
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']' && pos_in_new_param_2 < STATIC_LEN_FOR_SMALL_ARRAYS)
+                {
+                    new_param_2[pos_in_new_param_2++] = param_2[index++];
                 }
                 memset(param_2, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
                 strncpy(param_2, new_param_2, STATIC_LEN_FOR_SMALL_ARRAYS);
-            }
+            //}
         }
         else if (param_1[0] == '[')
         {
             is_addr_first_arg = true;
             size_t index = 0;
             char new_param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            size_t pos_in_new_param_1 = 0;
             while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_1[index]))
             {
                 index++;
             }
-            if (index + 2 < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index] == 'r' && param_1[index + 1] == 'e' && param_1[index + 2] == 'l')
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index + 1] == 'r' && param_1[index + 2] == 'e' && param_1[index + 3] == 'l')
             {
-                printf("it is relative offset! WIP\n");
-                abort();
-            }
-            else
-            {
-                index = 1;
-                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index] != ']')
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_1[index]))
                 {
-                    new_param_1[index - 1] = param_1[index];
                     index++;
+                }
+            }
+            // else
+            // {
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index] != ']' && pos_in_new_param_1 < STATIC_LEN_FOR_SMALL_ARRAYS)
+                {
+                    new_param_1[pos_in_new_param_1++] = param_1[index++];
                 }
                 memset(param_1, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
                 strncpy(param_1, new_param_1, STATIC_LEN_FOR_SMALL_ARRAYS);
-            }
+            //}
         }
         if (is_addr_first_arg && !is_addr_second_arg)
         {
@@ -1643,27 +1869,28 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
                 is_digit = true;
             }
             instruction->opcode = OP_MOV_MEMORY_REG;
+            parse_expression(instruction, param_1, commands, current_function);
             instruction->register_dest = get_register(param_1);
-            if ((instruction->register_dest).type == UNKNOWN_REGISTER_TYPE)
-            {
-                struct Label label = get_label(commands, param_1, SECTION_DATA, NULL);
-                instruction->label = label;
-            }
+            // if ((instruction->register_dest).type == UNKNOWN_REGISTER_TYPE)
+            // {
+            //     struct Label label = get_label(commands, param_1, SECTION_DATA, NULL);
+            // }
             if (is_digit)
             {
                 instruction->opcode = OP_MOV_MEMORY_IMM;
                 instruction->imm = imm;
-                if ((instruction->register_dest).type == TYPE_X64)
+                if ((instruction->expression).base.type == TYPE_X64)
                 {
                     (*pc) += 1/*REX*/;
                 }
                 (*pc) += 1/*opcode*/;
                 instruction->size_of_imm_data = get_size_of_imm_for_parse(instruction);
                 (*pc) += instruction->size_of_imm_data;
+                //printf("instruction->size_of_imm_data = %lu\n", instruction->size_of_imm_data);
             }
             else
             {
-                if ((instruction->register_dest).type == TYPE_X64)
+                if ((instruction->expression).base.type == TYPE_X64)
                 {
                     (*pc) += 1/*REX*/;
                 }
@@ -1731,12 +1958,19 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             instruction->opcode = OP_MOV_REG_ADDRESS_REG;
             instruction->register_dest = get_register(param_1);
             instruction->register_source = get_register(param_2);
-            if (check_if_unknown_register(&instruction->register_source))
+            //instruction->register_source = get_register(param_2);
+            parse_expression(instruction, param_2, commands, current_function);
+            if ((instruction->expression).has_label)
             {
-                struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
                 instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
-                instruction->label = label;
+                instruction->label = (instruction->expression).label;
             }
+            // if (check_if_unknown_register(&instruction->register_source))
+            // {
+            //     struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
+            //     instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
+            //     instruction->label = label;
+            // }
             if ((instruction->register_dest).type == TYPE_X64)
             {
                 (*pc) += 1/*REX*/;
@@ -1749,10 +1983,36 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
         position = skip_spaces(position, end_pointer);
-        int res = sscanf(position, "%7[^,]", param_1);
-        position += strlen(param_1);
-        position += 2;
-        res += sscanf(position, "%s", param_2);
+        // int res = sscanf(position, "%7[^,]", param_1);
+        // position += strlen(param_1);
+        // position += 2;
+        // res += sscanf(position, "%s", param_2);
+        size_t pos_in_param = 0;
+        position = skip_spaces(position, end_pointer);
+        //int res = sscanf(position, "%7[^,]", param_1);
+        //int res = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            //printf("pos_in_param = %lu\n", pos_in_param);
+            //printf("*position = %c\n", *position);
+            param_1[pos_in_param++] = *position;
+            position++;
+        }
+        param_1[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        //res += pos_in_param;
+        // position += strlen(param_1);
+        // position += 2;
+        pos_in_param = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            param_2[pos_in_param++] = *position;
+            position++;
+        }
+        param_2[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
         if (param_2[0] == '[')
         {
             size_t index = 0;
@@ -1761,14 +2021,23 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             {
                 index++;
             }
-            if (index + 2 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] == 'r' && param_2[index + 1] == 'e' && param_2[index + 2] == 'l')
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index + 1] == 'r' && param_2[index + 2] == 'e' && param_2[index + 3] == 'l')
             {
-                printf("it is relative offset! WIP\n");
-                abort();
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+                {
+                    index++;
+                }
             }
-            else
-            {
-                index = 1;
+            // else
+            // {
+                //index = 1;
+                if (index == 0)
+                {
+                    index++;
+                }
                 while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']')
                 {
                     new_param_2[index - 1] = param_2[index];
@@ -1776,24 +2045,31 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
                 }
                 memset(param_2, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
                 strncpy(param_2, new_param_2, STATIC_LEN_FOR_SMALL_ARRAYS);
-            }
+            //}
         }
         //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
-        if (res != 2)
-        {
-            fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing lea\n");
-            abort();
-        }
+        // if (res != 2)
+        // {
+        //     fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing lea\n");
+        //     abort();
+        // }
         instruction->opcode = OP_LEA_REG_ABS_ADDRESS_REG;
         instruction->register_dest = get_register(param_1);
-        //FIX IT(recursive descent!!!)
-        instruction->register_source = get_register(param_2);
-        if (check_if_unknown_register(&instruction->register_source))
+        parse_expression(instruction, param_2, commands, current_function);
+        if ((instruction->expression).has_label)
         {
-            struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
             instruction->opcode = OP_LEA_REG_ABS_ADDRESS_LABEL;
-            instruction->label = label;
+            instruction->label = (instruction->expression).label;
         }
+        instruction->register_source = get_register(param_2);
+        // //FIX IT(recursive descent!!!)
+        // instruction->register_source = get_register(param_2);
+        // if (check_if_unknown_register(&instruction->register_source))
+        // {
+        //     struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
+        //     instruction->opcode = OP_LEA_REG_ABS_ADDRESS_LABEL;
+        //     instruction->label = label;
+        // }
         if ((instruction->register_dest).type == TYPE_X64)
         {
             (*pc) += 1/*REX*/;
@@ -2326,6 +2602,7 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
     }
     //printf("list_with_operands = %s\n", list_with_operands);
     instruction->initial_instruction = get_initial_instruction(initial_instruction);
+    //printf("instuction->initial_instruction = %d\n", instruction->initial_instruction);
     if (instruction->initial_instruction == UNKNOWN_INSTRUCTION)
     {
         fprintf(stderr, "\x1b[33mError!\x1b[0mThere is no initial instruction in section data after label with data\n");
@@ -2341,6 +2618,7 @@ static void parse_instruction_from_data(char *position, struct Instruction *inst
         (instruction->operands).numeric_operand = imm;
         (instruction->operands).type = TYPE_NUMBER;
         (instruction->label).type_of_data = NUMBER;
+        //printf("label_name = %s\n", (instruction->label).label_name);
         *pc = find_label_and_change_it(commands, (instruction->label).label_name, (size_t)instruction->initial_instruction, SECTION_DATA, LABEL_WITH_DATA, imm, (instruction->label).type_of_data, *pc, GLOBAL_LABEL, NULL);
         //*pc += (size_t)instruction->initial_instruction;
         offset = (size_t)instruction->initial_instruction;
@@ -2479,6 +2757,10 @@ static bool check_if_function(struct Binary_file *binary_struct, const char *lab
 
 static bool is_str_digit(const char *str)
 {
+    while (*str == ' ')
+    {
+        str++;
+    }
     while (*str)
     {
         if (!isdigit(*str))
@@ -2515,6 +2797,7 @@ static void add_relocation(struct Binary_file *binary_struct, size_t offset_in_t
     strncpy(rel->symbol_name, symbol_name, sizeof(rel->symbol_name) - 1);
     rel->symbol_name[sizeof(rel->symbol_name) - 1] = '\0';
     //printf("rel->symbol_name = %s\n", rel->symbol_name);
+    //printf("rel->offset_in_text = %lu\n", rel->offset_in_text);
     (binary_struct->size_of_relocation_table)++;
     return;
 }
@@ -2763,10 +3046,10 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
         }
         case OP_MOV_MEMORY_IMM:
         {
-            Register_type type = (instruction->register_dest).type;
+            Register_type type = (instruction->expression).base.type;
             if (type != UNKNOWN_REGISTER_TYPE)
             {
-                if (type == TYPE_X8)
+                if (type == TYPE_X8 || (instruction->expression).additional_info_type == BYTE)
                 {
                     instruction->size_of_imm_data = SIZE_IMM_8;
                     return 0xC6;
@@ -2781,7 +3064,7 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
                     instruction->size_of_imm_data = SIZE_IMM_32;
                     return 0xC7;
                 }
-                else if (type == TYPE_X64)
+                else if (type == TYPE_X64 || (instruction->expression).additional_info_type == QWORD)
                 {
                     instruction->size_of_imm_data = SIZE_IMM_32;
                     return 0xC7;
@@ -2789,7 +3072,8 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
             }
             else
             {
-                if ((instruction->label).type_of_data == BUFFER_STR || (instruction->label).size_of_data == sizeof(uint8_t))
+                if ((instruction->label).type_of_data == BUFFER_STR || (instruction->label).size_of_data == sizeof(uint8_t)
+                    || (instruction->expression).additional_info_type == BYTE)
                 {
                     instruction->size_of_imm_data = SIZE_IMM_8;
                     return 0xC6;
@@ -2804,7 +3088,7 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
                     instruction->size_of_imm_data = SIZE_IMM_32;
                     return 0xC7;
                 }
-                else if ((instruction->label).size_of_data == sizeof(uint64_t))
+                else if ((instruction->label).size_of_data == sizeof(uint64_t) || (instruction->expression).additional_info_type == QWORD)
                 {
                     instruction->size_of_imm_data = SIZE_IMM_32;
                     return 0xC7;
@@ -2928,6 +3212,195 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
             break;
         }
     }
+    return 0;
+}
+
+static void encode_cmd_with_memory_expression(struct Instruction *instruction, uint8_t *pointer_on_buffer_of_cmds, size_t *buffer_commands_size, struct Binary_file *binary_struct)
+{
+    if (instruction == NULL || pointer_on_buffer_of_cmds == NULL || buffer_commands_size == NULL)
+    {
+        fprintf(stderr, "Error! Impossible to encode cmd with memory expression\n");
+        abort();
+    }
+    //printf("buffer_commands_size_before = %lu\n", *buffer_commands_size);
+    int register_dest = get_reg_for_code(&(instruction->register_dest));
+    int register_source = get_reg_for_code(&(instruction->register_source));
+    int register_index = get_reg_for_code(&(instruction->expression).index);
+    int register_base = get_reg_for_code(&(instruction->expression).base);
+    if ((instruction->expression).additional_info_type != BYTE)
+    {
+        //Encode Prefix REX
+        uint8_t rex = 0x40;
+        if ((instruction->register_dest).type == TYPE_X64 || (instruction->register_source).type == TYPE_X64 || ((instruction->expression).additional_info_type == QWORD))
+        {
+            rex |= 0x08;//W
+        }
+        if (register_source > 7 || register_dest > 7)
+        {
+            rex |= 0x04;//R
+        }
+        if (register_index > 7)
+        {
+            rex |= 0x02;//X
+        }
+        if (register_base > 7)
+        {
+            rex |= 0x01;//B
+        }
+        //printf("rex = %x\n", rex);
+        *pointer_on_buffer_of_cmds = rex;
+        pointer_on_buffer_of_cmds++;
+        *buffer_commands_size += 1;
+    }
+    //printf("buffer_commands_size_REX = %lu\n", *buffer_commands_size);
+    // if (register_dest > 7 || register_source > 7)
+    // {
+    //     *pointer_on_buffer_of_cmds = 0x49;
+    //     pointer_on_buffer_of_cmds++;
+    //     *buffer_commands_size += 1;
+    //     if (register_dest > 7)
+    //     {
+    //         register_dest -= 8;
+    //     }
+    //     else if (register_source > 7)
+    //     {
+    //         register_source -= 8;
+    //     }
+    // }
+    // else if ((instruction->register_dest).type == TYPE_X64 || (instruction->register_source).type == TYPE_X64)
+    // {
+    //     *pointer_on_buffer_of_cmds = 0x48;
+    //     pointer_on_buffer_of_cmds++;
+    //     *buffer_commands_size += 1;
+    //     printf("buffer_commands_size_REX = %lu\n", *buffer_commands_size);
+    // }
+    if ((instruction->register_dest).type == TYPE_X16 || (instruction->register_source).type == TYPE_X16)
+    {
+        *pointer_on_buffer_of_cmds = 0x66;
+        pointer_on_buffer_of_cmds++;
+        *buffer_commands_size += 1;
+        //printf("buffer_commands_size_additional = %lu\n", *buffer_commands_size);
+    }
+    *pointer_on_buffer_of_cmds = get_binary_code_of_operation(instruction);
+    pointer_on_buffer_of_cmds++;
+    *buffer_commands_size += 1;
+    //printf("buffer_commands_size_OPCODE = %lu\n", *buffer_commands_size);
+    uint8_t modrm = 0;
+    uint8_t mod = 0;
+    if ((instruction->expression).has_label)
+    {
+        mod = 0x00;
+    }
+    else if ((instruction->expression).disp == 0 && register_base != 5)
+    {
+        mod = 0x00;
+    }
+    else if ((instruction->expression).disp >= -128 && (instruction->expression).disp <= 127)
+    {
+        mod = 0x01;
+    }
+    else
+    {
+        mod = 0x10;
+    }
+    //printf("mod = %x\n", mod);
+    //printf("register_index = %d\n", register_index);
+    bool need_sib = ((instruction->expression).has_label && register_index != -1) || (register_index != -1 || register_base == 4);
+    //printf("need_sib = %d\n", need_sib);
+    uint8_t r_m = 0;
+    if ((instruction->expression).has_label && !need_sib)
+    {
+        r_m = 0x05;
+    }
+    else if (need_sib)
+    {
+        r_m = 0x04;
+    }
+    else
+    {
+        r_m = register_base & 0x07;
+    }
+    if (register_dest != -1)
+    {
+        modrm = (mod << 6) | ((register_dest & 0x07) << 3) | r_m;
+    }
+    else
+    {
+        modrm = (mod << 6) | ((register_source & 0x07) << 3) | r_m;
+    }
+    //printf("modrm = %x\n", modrm);
+    *pointer_on_buffer_of_cmds = modrm;
+    pointer_on_buffer_of_cmds++;
+    *buffer_commands_size += 1;
+    //printf("buffer_commands_size_MODRM = %lu\n", *buffer_commands_size);
+    if (need_sib)
+    {
+        uint8_t sib = 0;
+        int scale = (instruction->expression).scale;
+        uint8_t sib_scale = (scale == 8 ? 3 :
+                             scale == 4 ? 2 :
+                             scale == 2 ? 1 : 0);
+
+        uint8_t sib_index = (register_index == -1 ? 0b100 : (register_index & 7));
+        uint8_t sib_base  = (register_base == -1 ? 0b101 : (register_base & 7));
+        //printf("register_source = %d\n", register_source);
+        //printf("sib_base = %x\n", sib_base);
+        sib = (sib_scale << 6) | (sib_index << 3) | sib_base;
+        //printf("sib = %x\n", sib);
+        *pointer_on_buffer_of_cmds = sib;
+        pointer_on_buffer_of_cmds++;
+        *buffer_commands_size += 1;
+        //printf("buffer_commands_size_SIB = %lu\n", *buffer_commands_size);
+    }
+    if (mod == 0x01)
+    {
+        *pointer_on_buffer_of_cmds = (uint8_t)((instruction->expression).disp);
+        pointer_on_buffer_of_cmds++;
+        *buffer_commands_size += 1;
+        //printf("buffer_commands_size_MOD0x01 = %lu\n", *buffer_commands_size);
+    }
+    else if (mod == 0x10)
+    {
+        memcpy(pointer_on_buffer_of_cmds, &((instruction->expression).disp), 4);
+        pointer_on_buffer_of_cmds += 4;
+        *buffer_commands_size += 4;
+        //printf("buffer_commands_sizeMOD0x10 = %lu\n", *buffer_commands_size);
+    }
+    size_t reloc_offset = *buffer_commands_size;
+    bool need_add_relocation = false;
+    if ((instruction->expression).has_label)
+    {
+        reloc_offset = *buffer_commands_size;
+        need_add_relocation = true;
+        //printf("reloc_offset = %lu\n", reloc_offset);
+        int64_t zero = 0;
+        memcpy(pointer_on_buffer_of_cmds, &zero, 4);
+        pointer_on_buffer_of_cmds += 4;
+        *buffer_commands_size += 4;
+        //printf("label_name = %s\n", (instruction->expression).label.label_name);
+        //printf("buffer_commands_size_LABEL = %lu\n", *buffer_commands_size);
+    }
+    if (instruction->opcode == OP_MOV_MEMORY_IMM)
+    {
+        memcpy(pointer_on_buffer_of_cmds, (uint8_t*)&(instruction->imm), instruction->size_of_imm_data);
+        pointer_on_buffer_of_cmds += instruction->size_of_imm_data;
+        *buffer_commands_size += instruction->size_of_imm_data;/*imm*/
+        //printf("buffer_commands_size_IMM = %lu\n", *buffer_commands_size);
+    }
+    if (need_add_relocation)
+    {
+        int64_t addend = - (*buffer_commands_size - reloc_offset);
+        if (need_sib)
+        {
+            add_relocation(binary_struct, reloc_offset, ((instruction->expression).label).label_name, R_X86_64_32, 0);
+        }
+        else
+        {
+            add_relocation(binary_struct, reloc_offset, ((instruction->expression).label).label_name, R_X86_64_PC32, addend);
+        }
+    }
+    //printf("buffer_commands_size_after = %lu\n", *buffer_commands_size);
+    return;
 }
 
 static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_file *binary_struct)
@@ -3099,410 +3572,416 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_MOV_REG_ADDRESS_REG)
         {
-            int register_source = get_reg_for_code(&(instruction->register_source));
-            if (register_source == -1)
-            {
-                fprintf(stderr, "Error! This is not a register\n");
-                abort();
-            }
-            int register_dest = get_reg_for_code(&(instruction->register_dest));
-            if (register_dest == -1)
-            {
-                fprintf(stderr, "Error! This is not a register\n");
-                abort();
-            }
-            if (register_dest > 7 || register_source > 7)
-            {
-                if (register_dest > 7 && register_source > 7)
-                {
-                    register_dest -= 8;
-                    register_source -= 8;
-                }
-                else if (register_dest > 7)
-                {
-                    register_dest -= 8;
-                }
-                else if (register_source > 7)
-                {
-                    register_source -= 8;
-                }
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x49;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            else if (!(instruction->register_dest.register_x8 == AH   ||
-                       instruction->register_dest.register_x8 == BH   ||
-                       instruction->register_dest.register_x8 == CH   ||
-                       instruction->register_dest.register_x8 == DH   ||
-                       instruction->register_source.register_x8 == AH ||
-                       instruction->register_source.register_x8 == BH ||
-                       instruction->register_source.register_x8 == CH ||
-                       instruction->register_source.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            uint8_t opcode = get_binary_code_of_operation(instruction);
-            if ((instruction->register_dest).type == TYPE_X16)
-            {
-                *pointer_in_buffer_cmds = 0x66;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1;
-            }
-            *pointer_in_buffer_cmds = opcode;
-            pointer_in_buffer_cmds++;
-            uint8_t modrm = 0x00;//mod = 00b - mode r/m
-            modrm |= ((register_dest & 0x7) << 3);
-            modrm |= (register_source & 0x7);
-            *pointer_in_buffer_cmds = modrm;
-            pointer_in_buffer_cmds++;
-            buffer_of_commands_size += 1 + 1;
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
+            // int register_source = get_reg_for_code(&(instruction->register_source));
+            // if (register_source == -1)
+            // {
+            //     fprintf(stderr, "Error! This is not a register\n");
+            //     abort();
+            // }
+            // int register_dest = get_reg_for_code(&(instruction->register_dest));
+            // if (register_dest == -1)
+            // {
+            //     fprintf(stderr, "Error! This is not a register\n");
+            //     abort();
+            // }
+            // if (register_dest > 7 || register_source > 7)
+            // {
+            //     if (register_dest > 7 && register_source > 7)
+            //     {
+            //         register_dest -= 8;
+            //         register_source -= 8;
+            //     }
+            //     else if (register_dest > 7)
+            //     {
+            //         register_dest -= 8;
+            //     }
+            //     else if (register_source > 7)
+            //     {
+            //         register_source -= 8;
+            //     }
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x49;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // else if (!(instruction->register_dest.register_x8 == AH   ||
+            //            instruction->register_dest.register_x8 == BH   ||
+            //            instruction->register_dest.register_x8 == CH   ||
+            //            instruction->register_dest.register_x8 == DH   ||
+            //            instruction->register_source.register_x8 == AH ||
+            //            instruction->register_source.register_x8 == BH ||
+            //            instruction->register_source.register_x8 == CH ||
+            //            instruction->register_source.register_x8 == DH))
+            // {      
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x48;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // uint8_t opcode = get_binary_code_of_operation(instruction);
+            // if ((instruction->register_dest).type == TYPE_X16)
+            // {
+            //     *pointer_in_buffer_cmds = 0x66;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1;
+            // }
+            // *pointer_in_buffer_cmds = opcode;
+            // pointer_in_buffer_cmds++;
+            // uint8_t modrm = 0x00;//mod = 00b - mode r/source
+            // modrm |= ((register_dest & 0x7) << 3);
+            // modrm |= (register_source & 0x7);
+            // *pointer_in_buffer_cmds = modrm;
+            // pointer_in_buffer_cmds++;
+            // buffer_of_commands_size += 1 + 1;
         }
         else if (instruction->opcode == OP_MOV_REG_ADDRESS_LABEL)
         {
-            int register_dest = get_reg_for_code(&(instruction->register_dest));
-            if (register_dest == -1)
-            {
-                fprintf(stderr, "Error! This is not a register\n");
-                abort();
-            }
-            if (register_dest > 7)
-            {
-                register_dest -= 8;
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x49;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            else if ((instruction->register_dest).type == TYPE_X64)
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            uint8_t opcode = get_binary_code_of_operation(instruction);
-            if ((instruction->register_dest).type == TYPE_X16)
-            {
-                *pointer_in_buffer_cmds = 0x66;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1;
-            }
-            *pointer_in_buffer_cmds = opcode;
-            pointer_in_buffer_cmds++;
-            uint8_t modrm = 0x00;//mod = 00b - mode r/m
-            modrm |= ((register_dest & 0x7) << 3);
-            modrm |= 0x05;
-            *pointer_in_buffer_cmds = modrm;
-            pointer_in_buffer_cmds++;
-            int64_t zero = 0;
-            memcpy(pointer_in_buffer_cmds, &zero, 4);
-            pointer_in_buffer_cmds += 4;
-            buffer_of_commands_size += 1 + 1 + 4;
-            add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
+            // int register_dest = get_reg_for_code(&(instruction->register_dest));
+            // if (register_dest == -1)
+            // {
+            //     fprintf(stderr, "Error! This is not a register\n");
+            //     abort();
+            // }
+            // if (register_dest > 7)
+            // {
+            //     register_dest -= 8;
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x49;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // else if ((instruction->register_dest).type == TYPE_X64)
+            // {      
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x48;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // uint8_t opcode = get_binary_code_of_operation(instruction);
+            // if ((instruction->register_dest).type == TYPE_X16)
+            // {
+            //     *pointer_in_buffer_cmds = 0x66;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1;
+            // }
+            // *pointer_in_buffer_cmds = opcode;
+            // pointer_in_buffer_cmds++;
+            // uint8_t modrm = 0x00;//mod = 00b - mode r/source
+            // modrm |= ((register_dest & 0x7) << 3);
+            // modrm |= 0x05;
+            // *pointer_in_buffer_cmds = modrm;
+            // pointer_in_buffer_cmds++;
+            // int64_t zero = 0;
+            // memcpy(pointer_in_buffer_cmds, &zero, 4);
+            // pointer_in_buffer_cmds += 4;
+            // buffer_of_commands_size += 1 + 1 + 4;
+            // add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
         }
         else if (instruction->opcode == OP_MOV_MEMORY_IMM)
         {
-            //printf("imm = %lu\n", instruction->imm);
-            bool do_smaller = false;
-            if (((instruction->register_dest).register_x8 > 7 ||
-                (instruction->register_dest).register_x16 > 7 ||
-                (instruction->register_dest).register_x32 > 7 ||
-                (instruction->register_dest).register_x64 > 7) &&
-                (instruction->register_dest).register_x8  < 16 &&
-                (instruction->register_dest).register_x16 < 16 &&
-                (instruction->register_dest).register_x32 < 16 &&
-                (instruction->register_dest).register_x64 < 16)
-            {
-                do_smaller = true;
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x49;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            else if ((instruction->register_dest).type == TYPE_X64 || (instruction->label).size_of_data == sizeof(uint64_t))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            if (instruction->register_dest.type == UNKNOWN_REGISTER_TYPE)
-            {
-                *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*opcode*/;
-                //uint8_t modrm = 0x05;//mod = 00b - mode r/m
-                *pointer_in_buffer_cmds = 0x05;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*modrm*/;
-                //printf("type_of_data = %d\n", (instruction->label).type_of_data);
-                int64_t zero = 0;
-                memcpy(pointer_in_buffer_cmds, &zero, 4);
-                pointer_in_buffer_cmds += 4;
-                buffer_of_commands_size += 4;/*dim32*/
-                add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
-                memcpy(pointer_in_buffer_cmds, (uint8_t*)&(instruction->imm), instruction->size_of_imm_data);
-                pointer_in_buffer_cmds += instruction->size_of_imm_data;
-                buffer_of_commands_size += instruction->size_of_imm_data;/*imm*/
-            }
-            else
-            {
-                int register_ = get_reg_for_code(&(instruction->register_dest));
-                if (register_ == -1)
-                {
-                    fprintf(stderr, "Error! This is not a register\n");
-                    abort();
-                }
-                if (do_smaller)
-                {
-                    register_ -= 8;
-                }
-                uint8_t opcode = get_binary_code_of_operation(instruction);
-                if ((instruction->register_dest).type == TYPE_X16)
-                {
-                    *pointer_in_buffer_cmds = 0x66;
-                    pointer_in_buffer_cmds++;
-                    buffer_of_commands_size += 1;
-                }
-                else if ((instruction->register_dest).type == TYPE_X32)
-                {
-                    *pointer_in_buffer_cmds = 0x67;
-                    pointer_in_buffer_cmds++;
-                    buffer_of_commands_size += 1;
-                }
-                *pointer_in_buffer_cmds = opcode;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1;/*opcode*/
-                uint8_t modrm = 0x00 | (0x00 << 3)  | (register_ & 0x07);
-                *pointer_in_buffer_cmds = modrm;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1;/*modrm*/
-                memcpy(pointer_in_buffer_cmds, (uint8_t*)&(instruction->imm), instruction->size_of_imm_data);
-                pointer_in_buffer_cmds += instruction->size_of_imm_data;
-                buffer_of_commands_size += instruction->size_of_imm_data;/*imm*/
-            }
+            // //printf("imm = %lu\n", instruction->imm);
+            // bool do_smaller = false;
+            // if (((instruction->register_dest).register_x8 > 7 ||
+            //     (instruction->register_dest).register_x16 > 7 ||
+            //     (instruction->register_dest).register_x32 > 7 ||
+            //     (instruction->register_dest).register_x64 > 7) &&
+            //     (instruction->register_dest).register_x8  < 16 &&
+            //     (instruction->register_dest).register_x16 < 16 &&
+            //     (instruction->register_dest).register_x32 < 16 &&
+            //     (instruction->register_dest).register_x64 < 16)
+            // {
+            //     do_smaller = true;
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x49;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // else if ((instruction->register_dest).type == TYPE_X64 || (instruction->label).size_of_data == sizeof(uint64_t))
+            // {      
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x48;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // if (instruction->register_dest.type == UNKNOWN_REGISTER_TYPE)
+            // {
+            //     *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*opcode*/;
+            //     //uint8_t modrm = 0x05;//mod = 00b - mode r/source
+            //     *pointer_in_buffer_cmds = 0x05;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*modrm*/;
+            //     //printf("type_of_data = %d\n", (instruction->label).type_of_data);
+            //     int64_t zero = 0;
+            //     memcpy(pointer_in_buffer_cmds, &zero, 4);
+            //     pointer_in_buffer_cmds += 4;
+            //     buffer_of_commands_size += 4;/*dim32*/
+            //     add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
+            //     memcpy(pointer_in_buffer_cmds, (uint8_t*)&(instruction->imm), instruction->size_of_imm_data);
+            //     pointer_in_buffer_cmds += instruction->size_of_imm_data;
+            //     buffer_of_commands_size += instruction->size_of_imm_data;/*imm*/
+            // }
+            // else
+            // {
+            //     int register_ = get_reg_for_code(&(instruction->register_dest));
+            //     if (register_ == -1)
+            //     {
+            //         fprintf(stderr, "Error! This is not a register\n");
+            //         abort();
+            //     }
+            //     if (do_smaller)
+            //     {
+            //         register_ -= 8;
+            //     }
+            //     uint8_t opcode = get_binary_code_of_operation(instruction);
+            //     if ((instruction->register_dest).type == TYPE_X16)
+            //     {
+            //         *pointer_in_buffer_cmds = 0x66;
+            //         pointer_in_buffer_cmds++;
+            //         buffer_of_commands_size += 1;
+            //     }
+            //     else if ((instruction->register_dest).type == TYPE_X32)
+            //     {
+            //         *pointer_in_buffer_cmds = 0x67;
+            //         pointer_in_buffer_cmds++;
+            //         buffer_of_commands_size += 1;
+            //     }
+            //     *pointer_in_buffer_cmds = opcode;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1;/*opcode*/
+            //     uint8_t modrm = 0x00 | (0x00 << 3)  | (register_ & 0x07);
+            //     *pointer_in_buffer_cmds = modrm;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1;/*modrm*/
+            //     memcpy(pointer_in_buffer_cmds, (uint8_t*)&(instruction->imm), instruction->size_of_imm_data);
+            //     pointer_in_buffer_cmds += instruction->size_of_imm_data;
+            //     buffer_of_commands_size += instruction->size_of_imm_data;/*imm*/
+            // }
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
         }
         else if (instruction->opcode == OP_MOV_MEMORY_REG)
         {
-            //printf("imm = %lu\n", instruction->imm);
-            bool do_smaller = false;
-            if ((((instruction->register_dest).register_x8 > 7 ||
-                (instruction->register_dest).register_x16 > 7 ||
-                (instruction->register_dest).register_x32 > 7 ||
-                (instruction->register_dest).register_x64 > 7) &&
-                (instruction->register_dest).register_x8  < 16 &&
-                (instruction->register_dest).register_x16 < 16 &&
-                (instruction->register_dest).register_x32 < 16 &&
-                (instruction->register_dest).register_x64 < 16) ||
-                (((instruction->register_source).register_x8 > 7 ||
-                (instruction->register_source).register_x16  > 7 ||
-                (instruction->register_source).register_x32  > 7 ||
-                (instruction->register_source).register_x64  > 7) &&
-                (instruction->register_source).register_x8  < 16  &&
-                (instruction->register_source).register_x16 < 16  &&
-                (instruction->register_source).register_x32 < 16  &&
-                (instruction->register_source).register_x64 < 16))
-            {
-                do_smaller = true;
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x49;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            else if (((instruction->register_dest).type == TYPE_X64 && (instruction->register_source).type == TYPE_X64) 
-                  || (instruction->label).size_of_data == sizeof(uint64_t))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            if (instruction->register_dest.type == UNKNOWN_REGISTER_TYPE)
-            {
-                int register_source = get_reg_for_code(&(instruction->register_source));
-                if (register_source == -1)
-                {
-                    fprintf(stderr, "Error! This is not a register\n");
-                    abort();
-                }
-                if (do_smaller)
-                {
-                    register_source -= 8;
-                }
-                uint8_t opcode = get_binary_code_of_operation(instruction);
-                if ((instruction->register_source).type == TYPE_X16)
-                {
-                    *pointer_in_buffer_cmds = 0x66;
-                    pointer_in_buffer_cmds++;
-                    buffer_of_commands_size += 1;
-                }
-                *pointer_in_buffer_cmds = opcode;
-                pointer_in_buffer_cmds++;
-                int64_t zero = 0;
-                memcpy(pointer_in_buffer_cmds, &zero, 4);
-                pointer_in_buffer_cmds += 4;
-                buffer_of_commands_size += 1 + 1 + 4;
-                add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
-                uint8_t modrm = 0x00;//mod = 00b - mode r/m
-                modrm |= ((register_source & 0x7) << 3);
-                modrm |= 0x05;
-                *pointer_in_buffer_cmds = modrm;
-                pointer_in_buffer_cmds++;
-            }
-            else
-            {
-                int register_source = get_reg_for_code(&(instruction->register_source));
-                if (register_source == -1)
-                {
-                    fprintf(stderr, "Error! This is not a register\n");
-                    abort();
-                }
-                int register_dest = get_reg_for_code(&(instruction->register_dest));
-                if (register_dest == -1)
-                {
-                    fprintf(stderr, "Error! This is not a register\n");
-                    abort();
-                }
-                if (do_smaller)
-                {
-                    if (register_dest > 7 && register_source > 7)
-                    {
-                        register_dest -= 8;
-                        register_source -= 8;
-                    }
-                    else if (register_dest > 7)
-                    {
-                        register_dest -= 8;
-                    }
-                    else if (register_source > 7)
-                    {
-                        register_source -= 8;
-                    }
-                }
-                uint8_t opcode = get_binary_code_of_operation(instruction);
-                if ((instruction->register_dest).type == TYPE_X32)
-                {
-                    *pointer_in_buffer_cmds = 0x67;
-                    pointer_in_buffer_cmds++;
-                    buffer_of_commands_size++;
-                }
-                if ((instruction->register_source).type == TYPE_X16)
-                {
-                    *pointer_in_buffer_cmds = 0x66;
-                    pointer_in_buffer_cmds++;
-                    buffer_of_commands_size++;
-                }
+            // //printf("imm = %lu\n", instruction->imm);
+            // bool do_smaller = false;
+            // if ((((instruction->register_dest).register_x8 > 7 ||
+            //     (instruction->register_dest).register_x16 > 7 ||
+            //     (instruction->register_dest).register_x32 > 7 ||
+            //     (instruction->register_dest).register_x64 > 7) &&
+            //     (instruction->register_dest).register_x8  < 16 &&
+            //     (instruction->register_dest).register_x16 < 16 &&
+            //     (instruction->register_dest).register_x32 < 16 &&
+            //     (instruction->register_dest).register_x64 < 16) ||
+            //     (((instruction->register_source).register_x8 > 7 ||
+            //     (instruction->register_source).register_x16  > 7 ||
+            //     (instruction->register_source).register_x32  > 7 ||
+            //     (instruction->register_source).register_x64  > 7) &&
+            //     (instruction->register_source).register_x8  < 16  &&
+            //     (instruction->register_source).register_x16 < 16  &&
+            //     (instruction->register_source).register_x32 < 16  &&
+            //     (instruction->register_source).register_x64 < 16))
+            // {
+            //     do_smaller = true;
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x49;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // else if (((instruction->register_dest).type == TYPE_X64 && (instruction->register_source).type == TYPE_X64) 
+            //       || (instruction->label).size_of_data == sizeof(uint64_t))
+            // {      
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x48;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // if (instruction->register_dest.type == UNKNOWN_REGISTER_TYPE)
+            // {
+            //     int register_source = get_reg_for_code(&(instruction->register_source));
+            //     if (register_source == -1)
+            //     {
+            //         fprintf(stderr, "Error! This is not a register\n");
+            //         abort();
+            //     }
+            //     if (do_smaller)
+            //     {
+            //         register_source -= 8;
+            //     }
+            //     uint8_t opcode = get_binary_code_of_operation(instruction);
+            //     if ((instruction->register_source).type == TYPE_X16)
+            //     {
+            //         *pointer_in_buffer_cmds = 0x66;
+            //         pointer_in_buffer_cmds++;
+            //         buffer_of_commands_size += 1;
+            //     }
+            //     *pointer_in_buffer_cmds = opcode;
+            //     pointer_in_buffer_cmds++;
+            //     int64_t zero = 0;
+            //     memcpy(pointer_in_buffer_cmds, &zero, 4);
+            //     pointer_in_buffer_cmds += 4;
+            //     buffer_of_commands_size += 1 + 1 + 4;
+            //     add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
+            //     uint8_t modrm = 0x00;//mod = 00b - mode r/source
+            //     modrm |= ((register_source & 0x7) << 3);
+            //     modrm |= 0x05;
+            //     *pointer_in_buffer_cmds = modrm;
+            //     pointer_in_buffer_cmds++;
+            // }
+            // else
+            // {
+            //     int register_source = get_reg_for_code(&(instruction->register_source));
+            //     if (register_source == -1)
+            //     {
+            //         fprintf(stderr, "Error! This is not a register\n");
+            //         abort();
+            //     }
+            //     int register_dest = get_reg_for_code(&(instruction->register_dest));
+            //     if (register_dest == -1)
+            //     {
+            //         fprintf(stderr, "Error! This is not a register\n");
+            //         abort();
+            //     }
+            //     if (do_smaller)
+            //     {
+            //         if (register_dest > 7 && register_source > 7)
+            //         {
+            //             register_dest -= 8;
+            //             register_source -= 8;
+            //         }
+            //         else if (register_dest > 7)
+            //         {
+            //             register_dest -= 8;
+            //         }
+            //         else if (register_source > 7)
+            //         {
+            //             register_source -= 8;
+            //         }
+            //     }
+            //     uint8_t opcode = get_binary_code_of_operation(instruction);
+            //     if ((instruction->register_dest).type == TYPE_X32)
+            //     {
+            //         *pointer_in_buffer_cmds = 0x67;
+            //         pointer_in_buffer_cmds++;
+            //         buffer_of_commands_size++;
+            //     }
+            //     if ((instruction->register_source).type == TYPE_X16)
+            //     {
+            //         *pointer_in_buffer_cmds = 0x66;
+            //         pointer_in_buffer_cmds++;
+            //         buffer_of_commands_size++;
+            //     }
 
-                *pointer_in_buffer_cmds = opcode;
-                pointer_in_buffer_cmds++;
-                uint8_t modrm = 0x00;
-                modrm |= ((register_source & 0x7) << 3);
-                modrm |= (register_dest & 0x7);
-                *pointer_in_buffer_cmds = modrm;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1 + 1;
-            }
+            //     *pointer_in_buffer_cmds = opcode;
+            //     pointer_in_buffer_cmds++;
+            //     uint8_t modrm = 0x00;
+            //     modrm |= ((register_source & 0x7) << 3);
+            //     modrm |= (register_dest & 0x7);
+            //     *pointer_in_buffer_cmds = modrm;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1 + 1;
+            // }
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
         }
         else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_REG)
         {
-            int register_source = get_reg_for_code(&(instruction->register_source));
-            if (register_source == -1)
-            {
-                fprintf(stderr, "Error! This is not a register\n");
-                abort();
-            }
-            int register_dest = get_reg_for_code(&(instruction->register_dest));
-            if (register_dest == -1)
-            {
-                fprintf(stderr, "Error! This is not a register\n");
-                abort();
-            }
-            if ((register_dest > 7  && register_dest < 16) ||
-                (register_source > 7  && register_source < 16))
-            {
-                if (register_dest > 7 && register_source > 7)
-                {
-                    register_dest -= 8;
-                    register_source -= 8;
-                }
-                else if (register_dest > 7)
-                {
-                    register_dest -= 8;
-                }
-                else if (register_source > 7)
-                {
-                    register_source -= 8;
-                }
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x49;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            else if (!(instruction->register_dest.register_x8 == AH   ||
-                       instruction->register_dest.register_x8 == BH   ||
-                       instruction->register_dest.register_x8 == CH   ||
-                       instruction->register_dest.register_x8 == DH   ||
-                       instruction->register_source.register_x8 == AH ||
-                       instruction->register_source.register_x8 == BH ||
-                       instruction->register_source.register_x8 == CH ||
-                       instruction->register_source.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x8D;//Opcode of ||lea||
-            pointer_in_buffer_cmds++;
-            uint8_t modrm = 0x00;//mod = 00b - mode r/m
-            modrm |= ((register_dest & 0x7) << 3);
-            modrm |= (register_source & 0x7);
-            *pointer_in_buffer_cmds = modrm;
-            pointer_in_buffer_cmds++;
-            buffer_of_commands_size += 1 + 1;
+            // int register_source = get_reg_for_code(&(instruction->register_source));
+            // if (register_source == -1)
+            // {
+            //     fprintf(stderr, "Error! This is not a register\n");
+            //     abort();
+            // }
+            // int register_dest = get_reg_for_code(&(instruction->register_dest));
+            // if (register_dest == -1)
+            // {
+            //     fprintf(stderr, "Error! This is not a register\n");
+            //     abort();
+            // }
+            // if ((register_dest > 7  && register_dest < 16) ||
+            //     (register_source > 7  && register_source < 16))
+            // {
+            //     if (register_dest > 7 && register_source > 7)
+            //     {
+            //         register_dest -= 8;
+            //         register_source -= 8;
+            //     }
+            //     else if (register_dest > 7)
+            //     {
+            //         register_dest -= 8;
+            //     }
+            //     else if (register_source > 7)
+            //     {
+            //         register_source -= 8;
+            //     }
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x49;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // else if (!(instruction->register_dest.register_x8 == AH   ||
+            //            instruction->register_dest.register_x8 == BH   ||
+            //            instruction->register_dest.register_x8 == CH   ||
+            //            instruction->register_dest.register_x8 == DH   ||
+            //            instruction->register_source.register_x8 == AH ||
+            //            instruction->register_source.register_x8 == BH ||
+            //            instruction->register_source.register_x8 == CH ||
+            //            instruction->register_source.register_x8 == DH))
+            // {      
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x48;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x8D;//Opcode of ||lea||
+            // pointer_in_buffer_cmds++;
+            // uint8_t modrm = 0x00;//mod = 00b - mode r/source
+            // modrm |= ((register_dest & 0x7) << 3);
+            // modrm |= (register_source & 0x7);
+            // *pointer_in_buffer_cmds = modrm;
+            // pointer_in_buffer_cmds++;
+            // buffer_of_commands_size += 1 + 1;
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
         }
         else if (instruction->opcode == OP_LEA_REG_ABS_ADDRESS_LABEL)
         {
-            int register_dest = get_reg_for_code(&(instruction->register_dest));
-            if (register_dest == -1)
-            {
-                fprintf(stderr, "Error! This is not a register\n");
-                abort();
-            }
-            if (register_dest > 7)
-            {
-                register_dest -= 8;
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x49;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            else if (!(instruction->register_dest.register_x8 == AH ||
-                       instruction->register_dest.register_x8 == BH ||
-                       instruction->register_dest.register_x8 == CH ||
-                       instruction->register_dest.register_x8 == DH))
-            {      
-                //Prefix REX
-                *pointer_in_buffer_cmds = 0x48;
-                pointer_in_buffer_cmds++;
-                buffer_of_commands_size += 1/*REX*/;
-            }
-            *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x8D;//Opcode of ||lea||
-            pointer_in_buffer_cmds++;
-            uint8_t modrm = 0x00;//mod = 00b - mode r/m
-            modrm |= ((register_dest & 0x7) << 3);
-            modrm |= 0x5;
-            *pointer_in_buffer_cmds = modrm;
-            pointer_in_buffer_cmds++;
-            int64_t zero = 0;
-            memcpy(pointer_in_buffer_cmds, &zero, 4);
-            pointer_in_buffer_cmds += 4;
-            buffer_of_commands_size += 1 + 1 + 4;
-            add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
+            // int register_dest = get_reg_for_code(&(instruction->register_dest));
+            // if (register_dest == -1)
+            // {
+            //     fprintf(stderr, "Error! This is not a register\n");
+            //     abort();
+            // }
+            // if (register_dest > 7)
+            // {
+            //     register_dest -= 8;
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x49;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // else if (!(instruction->register_dest.register_x8 == AH ||
+            //            instruction->register_dest.register_x8 == BH ||
+            //            instruction->register_dest.register_x8 == CH ||
+            //            instruction->register_dest.register_x8 == DH))
+            // {      
+            //     //Prefix REX
+            //     *pointer_in_buffer_cmds = 0x48;
+            //     pointer_in_buffer_cmds++;
+            //     buffer_of_commands_size += 1/*REX*/;
+            // }
+            // *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);//0x8D;//Opcode of ||lea||
+            // pointer_in_buffer_cmds++;
+            // uint8_t modrm = 0x00;//mod = 00b - mode r/source
+            // modrm |= ((register_dest & 0x7) << 3);
+            // modrm |= 0x05;
+            // *pointer_in_buffer_cmds = modrm;
+            // pointer_in_buffer_cmds++;
+            // int64_t zero = 0;
+            // memcpy(pointer_in_buffer_cmds, &zero, 4);
+            // pointer_in_buffer_cmds += 4;
+            // buffer_of_commands_size += 1 + 1 + 4;
+            // add_relocation(binary_struct, buffer_of_commands_size - 4, (instruction->label).label_name, R_X86_64_PC32, -4);
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
         }
         else if (instruction->opcode == OP_XOR_REG_REG)
         {
