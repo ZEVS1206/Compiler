@@ -234,6 +234,7 @@ enum Register_type
     TYPE_DOUBLE           = 5
 };
 
+
 struct Register
 {
     Register_type   type;
@@ -267,15 +268,43 @@ enum Type_of_operand
     TYPE_STRING  = 2
 };
 
+enum Type_of_imm
+{
+    UNKNOWN_IMM_TYPE = 0,
+    TYPE_IMM_INT     = 1,
+    TYPE_IMM_DOUBLE  = 2
+};
+
+enum Size_of_imm
+{
+    UNKNOWN_IMM  = 0,
+    SIZE_IMM_8   = 1,
+    SIZE_IMM_16  = 2,
+    SIZE_IMM_32  = 4,
+    SIZE_IMM_64  = 8
+};
+
+struct Imm_data
+{
+    Type_of_imm type_of_imm;
+    union 
+    {
+        int64_t imm_int;
+        double  imm_double;
+    };
+    Size_of_imm size_of_imm_data;
+};
+
 struct Instruction_operand
 {
+    //Type_of_imm imm_type;
     Type_of_operand type;
     size_t len_of_string_operand;
-    union
+    union//?
     {
         char symbol_operand;
         uint8_t string_operand[100];
-        int64_t numeric_operand;
+        struct Imm_data imm;
     };  
 };
 
@@ -302,22 +331,16 @@ enum Type_of_data
     BUFFER_STR        = 2
 };
 
-enum Size_of_imm
-{
-    UNKNOWN_IMM  = 0,
-    SIZE_IMM_8   = 1,
-    SIZE_IMM_16  = 2,
-    SIZE_IMM_32  = 4,
-    SIZE_IMM_64  = 8
-};
-
 struct Label
 {
     char label_name[100];
     int32_t pc;
     size_t size_of_data;
     Type_of_label type;
-    int64_t imm_data;
+    //Type_of_imm imm_type;
+    struct Imm_data imm;
+    // double  double_imm_data;
+    // int64_t int_imm_data;
     unsigned position_in_strtab;
     Type_of_data type_of_data;
     bool label_before_use;
@@ -364,11 +387,13 @@ struct Instruction
     Opcode opcode;
     Register register_dest;//destination / first parametre
     Register register_source;// source / second parametre
-    int64_t imm;//const value in register
+    //Type_of_imm imm_type;
+    //int64_t imm;
+    struct Imm_data imm;//const value in register
     struct Label label;
     int32_t pc;//offset of this instruction in bytes from start point
     int64_t address;
-    Size_of_imm size_of_imm_data;
+    //Size_of_imm size_of_imm_data;
     Expression_type expression;
 };
 
@@ -386,16 +411,6 @@ struct Data_CMDS
 
 Errors_of_binary transform_asm_to_binary(FILE *file_pointer);
 
-const struct CMD registers_array[] = {{"rax", 0x000},
-                                {"rbx", 0x011},
-                                {"rcx", 0x001},
-                                {"rdx", 0x010},
-                                {"eax", 0x000},
-                                {"ebx", 0x011},
-                                {"ecx", 0x001},
-                                {"edx", 0x010}
-                               };
-const size_t size_of_registers_array = sizeof(registers_array) / sizeof(struct CMD);
 
 // typedef struct {
 //     Elf64_Word   sh_name;      // индекс имени секции в .shstrtab

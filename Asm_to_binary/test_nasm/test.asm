@@ -1,4 +1,4 @@
-;1 _start
+;2 _start func
 %include "include/test_file_for_add.inc"
 section .data
     msg db 20 dup(0)
@@ -10,14 +10,16 @@ section .data
 section .text
     global _start
 
-;func:
-;    jmp .label
-;    mov rdx, 10
-;.label:
-;    print_str msg1, len1
-;    ret
+func:
+    print_str msg1, len1
+    jmp .label
+    mov rdx, 10
+.label:
+    print_str msg1, len1
+    ret
 
 _start:
+    call func
     mov rcx, [rbp + rdx * 8 + 8]
     mov byte [rel msg], 0
     mov rax, [rel buffer_index]
