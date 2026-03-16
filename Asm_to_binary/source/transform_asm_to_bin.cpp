@@ -8,7 +8,7 @@
 #include "function_and_structures.h"
 #include "prepocessing_header.h"
 
-#define MAX_LEN_FOR_STATIC_ARRAYS 100
+#define MAX_LEN_FOR_STATIC_ARRAYS 300
 
 
 static size_t align_up(size_t offset, size_t base);//Need for align_up offset in memory
@@ -344,12 +344,15 @@ static Errors_of_binary create_binary_file(struct Binary_file *binary_struct)
     for (size_t index = 0; index < binary_struct->size_of_text_labels; index++)
     {
         //printf("label_name = %s\n", (binary_struct->data_labels)[index].label_name);
+        
         if ((binary_struct->text_labels)[index].type_of_jmp_label == LOCAL_LABEL)
         {
+            //printf("local_label: (binary_struct->text_labels)[%lu].real_label_name = %s\n", index, (binary_struct->text_labels)[index].real_label_name);
             (binary_struct->text_labels)[index].position_in_strtab = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), (binary_struct->text_labels)[index].real_label_name);
         }
         else
         {
+            //printf("global_label: (binary_struct->text_labels)[%lu].label_name = %s\n", index, (binary_struct->text_labels)[index].label_name);
             (binary_struct->text_labels)[index].position_in_strtab = add_string_to_buffer(binary_struct->symbol_string_table, &(binary_struct->len_symbol_string_table), (binary_struct->text_labels)[index].label_name);
         }
         
@@ -1663,7 +1666,7 @@ static void parse_expression(struct Instruction *instruction, const char *expres
     (instruction->expression).index.register_x64 = UNKNOWN_REGISTER_X64;
     char base_or_label[MAX_LEN_FOR_STATIC_ARRAYS] = "";
     sscanf(expression, "%s", base_or_label);
-    // printf("base_or_label = %s\n", base_or_label);
+    //printf("base_or_label = %s\n", base_or_label);
     Register reg = get_register(base_or_label);
     if (reg.type == UNKNOWN_REGISTER_TYPE)
     {
@@ -1764,6 +1767,7 @@ static void parse_expression(struct Instruction *instruction, const char *expres
             (instruction->expression).disp = (arithmetic_operation != '-' ? (int32_t)atoi(line) : (-1) * (int32_t)atoi(line));
             expression += strlen(line);
             expression++;
+            //printf("*expression = %c\n", *expression);
             if (*expression != '\0')
             {
                 fprintf(stderr, "Error! There is no close bracket after memory expression\n");
@@ -1857,6 +1861,10 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         {
             (instruction->expression).additional_info_type = QWORD;
         }
+        else if (strcasecmp(additional_info, "DWORD") == 0)
+        {
+            (instruction->expression).additional_info_type = DWORD;
+        }
         else
         {
             position = old_position;
@@ -1888,12 +1896,216 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         position = skip_spaces(position, end_pointer);
         // res += pos_in_param;
         // //res += sscanf(position, "%s", param_2);
-        //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
+        // printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
         // if (res != 2)
         // {
         //     fprintf(stderr, "\x1b[31mError!\x1b[0m Error in parsing mov\n");
         //     abort();
         // }
+        bool is_addr_second_arg = false;
+        bool is_addr_first_arg  = false;
+        if (param_2[0] == '[')
+        {
+            is_addr_second_arg = true;
+            size_t index = 0;
+            char new_param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            size_t pos_in_new_param_2 = 0;
+            while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+            {
+                index++;
+            }
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index + 1] == 'r' && param_2[index + 2] == 'e' && param_2[index + 3] == 'l')
+            {
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+                {
+                    index++;
+                }
+            }
+            // else
+            // {
+                //index = 1;
+                if (index == 0)
+                {
+                    index++;
+                }
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']' && pos_in_new_param_2 < STATIC_LEN_FOR_SMALL_ARRAYS)
+                {
+                    new_param_2[pos_in_new_param_2++] = param_2[index++];
+                }
+                memset(param_2, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
+                strncpy(param_2, new_param_2, STATIC_LEN_FOR_SMALL_ARRAYS);
+            //}
+        }
+        else if (param_1[0] == '[')
+        {
+            is_addr_first_arg = true;
+            size_t index = 0;
+            char new_param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            size_t pos_in_new_param_1 = 0;
+            while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_1[index]))
+            {
+                index++;
+            }
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index + 1] == 'r' && param_1[index + 2] == 'e' && param_1[index + 3] == 'l')
+            {
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_1[index]))
+                {
+                    index++;
+                }
+            }
+            else
+            {
+                index = 1;
+            }
+            // else
+            // {
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index] != ']' && pos_in_new_param_1 < STATIC_LEN_FOR_SMALL_ARRAYS)
+                {
+                    new_param_1[pos_in_new_param_1++] = param_1[index++];
+                }
+                memset(param_1, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
+                strncpy(param_1, new_param_1, STATIC_LEN_FOR_SMALL_ARRAYS);
+            //}
+        }
+        //printf("param_1 = %s\nparam_2 = %s\n", param_1, param_2);
+        if (is_addr_first_arg && !is_addr_second_arg)
+        {
+            //bool is_digit = is_str_digit(param_2);
+            bool is_digit = save_imm_to_instruction(instruction, param_2);
+            instruction->opcode = OP_MOV_MEMORY_REG;
+            parse_expression(instruction, param_1, commands, current_function);
+            instruction->register_dest = get_register(param_1);
+            // if ((instruction->register_dest).type == UNKNOWN_REGISTER_TYPE)
+            // {
+            //     struct Label label = get_label(commands, param_1, SECTION_DATA, NULL);
+            // }
+            if (is_digit)
+            {
+                instruction->opcode = OP_MOV_MEMORY_IMM;
+                if ((instruction->expression).base.type == TYPE_X64)
+                {
+                    (*pc) += 1/*REX*/;
+                }
+                (*pc) += 1/*opcode*/;
+                (instruction->imm).size_of_imm_data = get_size_of_imm_for_parse(instruction);
+                (*pc) += (instruction->imm).size_of_imm_data;
+                //printf("instruction->size_of_imm_data = %lu\n", instruction->size_of_imm_data);
+            }
+            else
+            {
+                if ((instruction->expression).base.type == TYPE_X64)
+                {
+                    (*pc) += 1/*REX*/;
+                }
+                instruction->register_source = get_register(param_2);
+                (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+            }
+        }
+        if (!is_addr_second_arg && !is_addr_first_arg)
+        {
+            bool is_digit = save_imm_to_instruction(instruction, param_2);
+            instruction->opcode = OP_MOV_REG_REG;
+            instruction->register_dest = get_register(param_1);
+            if (is_digit)
+            {
+                instruction->opcode = OP_MOV_REG_IMM;
+                if ((instruction->register_dest).type == TYPE_X64)
+                {
+                    (*pc) += 1/*REX*/;
+                }
+                (*pc) += 1/*opcode*/;
+                (instruction->imm).size_of_imm_data = get_size_of_imm_for_parse(instruction);
+                (*pc) += (instruction->imm).size_of_imm_data;
+            }
+            else
+            {
+                instruction->register_source = get_register(param_2);
+                if (check_if_unknown_register(&instruction->register_source))
+                {
+                    struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
+                    
+                    if (label.type == CONSTANT_LABEL)
+                    {
+                        instruction->opcode = OP_MOV_REG_IMM;
+                        instruction->imm = label.imm;
+                    }
+                    else
+                    {
+                        instruction->opcode = OP_MOV_REG_LABEL;
+                        instruction->label = label;
+                    }
+                    (instruction->imm).size_of_imm_data = get_size_of_imm_for_parse(instruction);
+                    (*pc) += (instruction->imm).size_of_imm_data;
+                }
+                else
+                {
+                    (*pc) += 1/*ModR/M*/;
+                }
+                if ((instruction->register_dest).type == TYPE_X64)
+                {
+                    (*pc) += 1/*REX*/;
+                }
+                (*pc) += 1/*opcode*/;
+            }
+        }
+        else if (is_addr_second_arg && !is_addr_first_arg)
+        {
+            instruction->opcode = OP_MOV_REG_ADDRESS_REG;
+            instruction->register_dest = get_register(param_1);
+            instruction->register_source = get_register(param_2);
+            //instruction->register_source = get_register(param_2);
+            parse_expression(instruction, param_2, commands, current_function);
+            if ((instruction->expression).has_label)
+            {
+                instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
+                instruction->label = (instruction->expression).label;
+            }
+            // if (check_if_unknown_register(&instruction->register_source))
+            // {
+            //     struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
+            //     instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
+            //     instruction->label = label;
+            // }
+            if ((instruction->register_dest).type == TYPE_X64)
+            {
+                (*pc) += 1/*REX*/;
+            }
+            (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+        }
+    }
+    else if (strcasecmp(operation, "movsd") == 0)
+    {
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        size_t pos_in_param = 0;
+        position = skip_spaces(position, end_pointer);
+        //int res = sscanf(position, "%7[^,]", param_1);
+        //int res = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            //printf("pos_in_param = %lu\n", pos_in_param);
+            //printf("*position = %c\n", *position);
+            param_1[pos_in_param++] = *position;
+            position++;
+        }
+        param_1[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        pos_in_param = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            param_2[pos_in_param++] = *position;
+            position++;
+        }
+        param_2[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
         bool is_addr_second_arg = false;
         bool is_addr_first_arg  = false;
         if (param_2[0] == '[')
@@ -2059,6 +2271,157 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             //     instruction->opcode = OP_MOV_REG_ADDRESS_LABEL;
             //     instruction->label = label;
             // }
+            if ((instruction->register_dest).type == TYPE_X64)
+            {
+                (*pc) += 1/*REX*/;
+            }
+            (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
+        }
+    }
+    else if (strcasecmp(operation, "movsxd") == 0)
+    {
+        char param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        size_t pos_in_param = 0;
+        position = skip_spaces(position, end_pointer);
+        char additional_info[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+        char *old_position = position;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && *position != ' ')
+        {
+            additional_info[pos_in_param++] = *position;
+            position++;
+        }
+        additional_info[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        if (strcasecmp(additional_info, "byte") == 0)
+        {
+            (instruction->expression).additional_info_type = BYTE;
+        }
+        else if (strcasecmp(additional_info, "qword") == 0)
+        {
+            (instruction->expression).additional_info_type = QWORD;
+        }
+        else if (strcasecmp(additional_info, "DWORD") == 0)
+        {
+            (instruction->expression).additional_info_type = DWORD;
+        }
+        else
+        {
+            position = old_position;
+        }
+        pos_in_param = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            //printf("pos_in_param = %lu\n", pos_in_param);
+            //printf("*position = %c\n", *position);
+            param_1[pos_in_param++] = *position;
+            position++;
+        }
+        param_1[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        pos_in_param = 0;
+        old_position = position;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && *position != ' ')
+        {
+            additional_info[pos_in_param++] = *position;
+            position++;
+        }
+        additional_info[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        if (strcasecmp(additional_info, "DWORD") != 0)
+        {
+            position = old_position;
+        }
+        else 
+        {
+            (instruction->expression).additional_info_type = DWORD;
+        }
+        pos_in_param = 0;
+        while (pos_in_param < MAX_LEN_FOR_STATIC_ARRAYS && (*position != ',' && *position != '\n' && *position != '\0'))
+        {
+            param_2[pos_in_param++] = *position;
+            position++;
+        }
+        param_2[pos_in_param] = '\0';
+        position++;
+        position = skip_spaces(position, end_pointer);
+        bool is_addr_second_arg = false;
+        bool is_addr_first_arg  = false;
+        if (param_2[0] == '[')
+        {
+            is_addr_second_arg = true;
+            size_t index = 0;
+            char new_param_2[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            size_t pos_in_new_param_2 = 0;
+            while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+            {
+                index++;
+            }
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index + 1] == 'r' && param_2[index + 2] == 'e' && param_2[index + 3] == 'l')
+            {
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_2[index]))
+                {
+                    index++;
+                }
+            }
+            // else
+            // {
+                //index = 1;
+                if (index == 0)
+                {
+                    index++;
+                }
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_2[index] != ']' && pos_in_new_param_2 < STATIC_LEN_FOR_SMALL_ARRAYS)
+                {
+                    new_param_2[pos_in_new_param_2++] = param_2[index++];
+                }
+                memset(param_2, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
+                strncpy(param_2, new_param_2, STATIC_LEN_FOR_SMALL_ARRAYS);
+            //}
+        }
+        else if (param_1[0] == '[')
+        {
+            is_addr_first_arg = true;
+            size_t index = 0;
+            char new_param_1[STATIC_LEN_FOR_SMALL_ARRAYS] = "";
+            size_t pos_in_new_param_1 = 0;
+            while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_1[index]))
+            {
+                index++;
+            }
+            if (index + 3 < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index + 1] == 'r' && param_1[index + 2] == 'e' && param_1[index + 3] == 'l')
+            {
+                // printf("it is relative offset! WIP\n");
+                // abort();
+                index += 4;
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && isspace(param_1[index]))
+                {
+                    index++;
+                }
+            }
+            // else
+            // {
+                while (index < STATIC_LEN_FOR_SMALL_ARRAYS && param_1[index] != ']' && pos_in_new_param_1 < STATIC_LEN_FOR_SMALL_ARRAYS)
+                {
+                    new_param_1[pos_in_new_param_1++] = param_1[index++];
+                }
+                memset(param_1, '\0', STATIC_LEN_FOR_SMALL_ARRAYS);
+                strncpy(param_1, new_param_1, STATIC_LEN_FOR_SMALL_ARRAYS);
+            //}
+        }
+        
+        if (is_addr_second_arg && !is_addr_first_arg)
+        {
+            instruction->opcode = OP_MOVSXD_REG_ADDRESS_REG;
+            instruction->register_dest = get_register(param_1);
+            instruction->register_source = get_register(param_2);
+            parse_expression(instruction, param_2, commands, current_function);
             if ((instruction->register_dest).type == TYPE_X64)
             {
                 (*pc) += 1/*REX*/;
@@ -2270,7 +2633,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             {
                 (*pc) += 1/*REX*/;
             }
-            pc += 1/*opcode*/;
+            *pc += 1/*opcode*/;
             (instruction->imm).size_of_imm_data = get_size_of_imm_for_parse(instruction);
             (*pc) += (instruction->imm).size_of_imm_data;
         }
@@ -2362,6 +2725,14 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         //printf("param_1 = %s\nlen_of_param = %lu\n", param_1, strlen(param_1));
         instruction->opcode = OP_PUSH_REG;
         instruction->register_source = get_register(param_1);
+        if (instruction->register_source.type == UNKNOWN_REGISTER_TYPE)
+        {
+            char *end_pointer = NULL;
+            (instruction->imm).imm_int = strtol(param_1, &end_pointer, 10);
+            (instruction->imm).type_of_imm = TYPE_IMM_INT;
+            (instruction->imm).size_of_imm_data = get_size_of_imm_for_parse(instruction);
+            instruction->opcode = OP_PUSH_IMM;
+        }
         (*pc) += 1/*opcode*/;
     }
     else if (strcasecmp(operation, "pop") == 0)
@@ -2424,8 +2795,18 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
         bool is_digit_or_symbol = save_imm_to_instruction(instruction, param_2);
         instruction->opcode = OP_CMP_REG_REG;
         instruction->register_dest = get_register(param_1);
-        if (is_digit_or_symbol)
+        //printf("cmp: register_dest\n");
+        // printf("reg_x8 = %d\nreg_x16 = %d\nreg_x32 = %d\nreg_x64 = %d\n", (instruction->register_dest).register_x8,
+        //                                                                     (instruction->register_dest).register_x16,
+        //                                                                     (instruction->register_dest).register_x32,
+        //                                                                     (instruction->register_dest).register_x64);
+        struct Label label = get_label(commands, param_2, SECTION_DATA, NULL);
+        if (is_digit_or_symbol || label.type == CONSTANT_LABEL)
         {
+            if (label.type == CONSTANT_LABEL)
+            {
+                instruction->imm = label.imm;
+            }
             instruction->opcode = OP_CMP_REG_IMM;
             if ((instruction->register_dest).type == TYPE_X64)
             {
@@ -2450,6 +2831,7 @@ static void parse_instruction_from_text(char *position, struct Instruction *inst
             }
             (*pc) += 1/*opcode*/ + 1/*ModR/M*/;
         }
+        //printf("instruction->opcode = %d\n\n", instruction->opcode);
     }
     else if (strcasecmp(operation, "jmp") == 0)
     {
@@ -2977,6 +3359,11 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
             return 0x8B;
             break;
         }
+        case OP_MOVSXD_REG_ADDRESS_REG:
+        {
+            return 0x63;
+            break;
+        }
         case OP_LEA_REG_ABS_ADDRESS_LABEL:
         {
             return 0x8D;
@@ -3028,6 +3415,11 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
         case OP_PUSH_REG:
         {
             return 0x50;
+            break;
+        }
+        case OP_PUSH_IMM:
+        {
+            return 0x6A;
             break;
         }
         case OP_POP_TO_REG:
@@ -3139,7 +3531,7 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
                     (instruction->imm).size_of_imm_data = SIZE_IMM_16;
                     return 0xC7;
                 }
-                else if (type == TYPE_X32)
+                else if (type == TYPE_X32 || (instruction->expression).additional_info_type == DWORD)
                 {
                     (instruction->imm).size_of_imm_data = SIZE_IMM_32;
                     return 0xC7;
@@ -3163,7 +3555,7 @@ static uint8_t get_binary_code_of_operation(struct Instruction *instruction)
                     (instruction->imm).size_of_imm_data = SIZE_IMM_16;
                     return 0xC7;
                 }
-                else if ((instruction->label).size_of_data == sizeof(uint32_t))
+                else if ((instruction->label).size_of_data == sizeof(uint32_t) || (instruction->expression).additional_info_type == DWORD)
                 {
                     (instruction->imm).size_of_imm_data = SIZE_IMM_32;
                     return 0xC7;
@@ -3307,7 +3699,8 @@ static void encode_cmd_with_memory_expression(struct Instruction *instruction, u
     int register_source = get_reg_for_code(&(instruction->register_source));
     int register_index = get_reg_for_code(&(instruction->expression).index);
     int register_base = get_reg_for_code(&(instruction->expression).base);
-    if ((instruction->expression).additional_info_type != BYTE)
+    if ((instruction->expression).additional_info_type != BYTE && 
+        (instruction->expression).additional_info_type != DWORD)
     {
         //Encode Prefix REX
         uint8_t rex = 0x40;
@@ -3528,7 +3921,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_ = get_reg_for_code(&(instruction->register_dest));
             if (register_ == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_MOV_REG_IMM\n");
                 abort();
             }
             //printf("imm = %lu\n", instruction->imm);
@@ -3572,13 +3965,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_MOV_REG_REG\n");
                 abort();
             }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_MOV_REG_REG\n");
                 abort();
             }
 
@@ -3633,7 +4026,8 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                
+                fprintf(stderr, "Error! This is not a register in OP_MOV_REG_LABEL\n");
                 abort();
             }
             if (register_dest > 7)
@@ -3728,6 +4122,10 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             // *pointer_in_buffer_cmds = modrm;
             // pointer_in_buffer_cmds++;
             // buffer_of_commands_size += 1 + 1;
+        }
+        else if (instruction->opcode == OP_MOVSXD_REG_ADDRESS_REG)
+        {
+            encode_cmd_with_memory_expression(instruction, pointer_in_buffer_cmds, &buffer_of_commands_size, binary_struct);
         }
         else if (instruction->opcode == OP_MOV_REG_ADDRESS_LABEL)
         {
@@ -4082,13 +4480,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_XOR_REG_REG\n");
                 abort();
             }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_XOR_REG_REG\n");
                 abort();
             }
             if (register_dest > 7 || register_source > 7)
@@ -4139,7 +4537,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_ADD_REG_IMM\n");
                 abort();
             }
             if (register_dest > 7)
@@ -4188,13 +4586,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_ADD_REG_REG\n");
                 abort();
             }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_ADD_REG_REG\n");
                 abort();
             }
             if (register_dest > 7 || register_source > 7)
@@ -4245,7 +4643,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_SUB_REG_IMM\n");
                 abort();
             }
             if (register_dest > 7)
@@ -4295,13 +4693,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_SUB_REG_REG\n");
                 abort();
             }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_SUB_REG_REG\n");
                 abort();
             }
             if (register_dest > 7 || register_source > 7)
@@ -4352,7 +4750,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_MUL_REG\n");
                 abort();
             }
             if (register_source > 7)
@@ -4389,13 +4787,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_IMUL_REG_REG\n");
                 abort();
             }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_IMUL_REG_REG\n");
                 abort();
             }
             if (register_dest > 7 || register_source > 7)
@@ -4448,7 +4846,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_DIV_REG\n");
                 abort();
             }
             if (register_source > 7)
@@ -4485,7 +4883,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_IDIV_REG\n");
                 abort();
             }
             if (register_source > 7)
@@ -4519,11 +4917,11 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
         }
         else if (instruction->opcode == OP_PUSH_REG)
         {
-            //printf("register = %d\n", instruction->register_source);
+            //printf("register = %d\n", instruction->register_source.register_x64);
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_PUSH_REG\n");
                 abort();
             }
             if (register_source > 7)
@@ -4537,6 +4935,18 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             pointer_in_buffer_cmds++;
             buffer_of_commands_size += 1;
         }
+        else if (instruction->opcode == OP_PUSH_IMM)
+        {
+            *pointer_in_buffer_cmds = get_binary_code_of_operation(instruction);
+            pointer_in_buffer_cmds++;
+            buffer_of_commands_size += 1;
+            if ((instruction->imm).type_of_imm == TYPE_IMM_INT)
+            {
+                memcpy(pointer_in_buffer_cmds, (uint8_t*)&((instruction->imm).imm_int), (instruction->imm).size_of_imm_data);
+            }
+            pointer_in_buffer_cmds += (instruction->imm).size_of_imm_data;
+            buffer_of_commands_size += (instruction->imm).size_of_imm_data;/*imm*/
+        }
         else if (instruction->opcode == OP_POP_TO_REG)
         {
             //printf("index = %lu\n", index);
@@ -4544,7 +4954,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_POP_TO_REG\n");
                 abort();
             }
             if (register_dest > 7)
@@ -4563,7 +4973,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_INC_REG\n");
                 abort();
             }
             if (register_dest > 7)
@@ -4600,7 +5010,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_DEC_REG\n");
                 abort();
             }
             if (register_dest > 7)
@@ -4637,7 +5047,7 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_CMP_REG_IMM\n");
                 abort();
             }
             if (register_dest > 7)
@@ -4686,13 +5096,13 @@ static void encode_text_instructions(struct Data_CMDS *commands, struct Binary_f
             int register_source = get_reg_for_code(&(instruction->register_source));
             if (register_source == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_CMP_REG_REG\n");
                 abort();
             }
             int register_dest = get_reg_for_code(&(instruction->register_dest));
             if (register_dest == -1)
             {
-                fprintf(stderr, "Error! This is not a register\n");
+                fprintf(stderr, "Error! This is not a register in OP_CMP_REG_REG\n");
                 abort();
             }
             if (register_dest > 7 || register_source > 7)

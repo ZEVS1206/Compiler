@@ -10,8 +10,19 @@ static size_t get_size_of_file(FILE *file_pointer);
 static void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_type *macros, size_t size_of_macros);
 static int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t size_of_source,
                                       char *buffer_with_commands_from_add,    size_t size_of_add,  
-                                      char *buffer_with_out_commands,         size_t size_of_result,
-                                      struct Macro_type *macros,              size_t size_of_macros);
+                                      char *buffer_with_out_commands,         size_t size_of_result);
+static int substitute_macros_to_result(char *buffer_with_out_commands, size_t size_of_result, char *tmp_buffer_with_out_commands,
+                                       struct Macro_type *macros, size_t size_of_macros);
+static size_t skip_spaces(char *buffer, size_t size, size_t pos);
+
+static size_t skip_spaces(char *buffer, size_t size, size_t pos)
+{
+    while (pos < size && isspace(buffer[pos]))
+    {
+        pos++;
+    }
+    return pos;
+}
 
 static size_t get_size_of_file(FILE *file_pointer)
 {
@@ -110,9 +121,12 @@ static void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_typ
 
 static int parse_source_and_add_files(char *buffer_with_commands_from_source, size_t size_of_source,
                                       char *buffer_with_commands_from_add,    size_t size_of_add,  
-                                      char *buffer_with_out_commands,         size_t size_of_result,
-                                      struct Macro_type *macros,              size_t size_of_macros)
+                                      char *buffer_with_out_commands,         size_t size_of_result)
 {
+    if (buffer_with_commands_from_add == NULL || buffer_with_commands_from_source == NULL || buffer_with_out_commands == NULL)
+    {
+        return 1;
+    }
     size_t position_in_result = 0;
     bool section_code_starts = false;
     for (size_t pos_in_source = 0; pos_in_source < size_of_source; ++pos_in_source)
@@ -162,67 +176,67 @@ static int parse_source_and_add_files(char *buffer_with_commands_from_source, si
         }
         line[index_line] = '\0';
         //printf("line_after_first_while = %s\n", line);
-        bool it_is_macro = false;
-        size_t index_in_macros = 0;
-        for (index_in_macros = 0; index_in_macros < size_of_macros; ++index_in_macros)
-        {
-            if (strcasecmp(line, macros[index_in_macros].name_of_macro) == 0)
-            {
-                it_is_macro = true;
-                break;
-            }
-        }
-        if (it_is_macro)
-        {
-            pos_for_get_line++;
-            for (size_t index_in_arguments = 0; index_in_arguments < macros[index_in_macros].count_of_arguments; ++index_in_arguments)
-            {
-                index_line = 0;
-                memset(line, '\0', STATIC_LEN);
-                while (index_line < STATIC_LEN - 1 && pos_for_get_line < size_of_source && !isspace(buffer_with_commands_from_source[pos_for_get_line])
-                       && buffer_with_commands_from_source[pos_for_get_line] != ',')
-                {
-                    line[index_line] = buffer_with_commands_from_source[pos_for_get_line];
-                    index_line++;
-                    pos_for_get_line++;
-                }
-                line[index_line] = '\0';
-                if (buffer_with_commands_from_source[pos_for_get_line] == ',')
-                {
-                    pos_for_get_line += 2;
-                }
-                if (!(macros[index_in_macros]).arguments[index_in_arguments])
-                {
-                    (macros[index_in_macros]).arguments[index_in_arguments] = (char *) calloc (index_line + 1, sizeof(char));
-                }
-                if (!(macros[index_in_macros]).arguments[index_in_arguments])
-                {
-                    return 1;
-                }
-                // printf("line = %s\n", line);
-                // //line[strlen(line) - 1] = '\0';
-                // printf("index_line = %lu\n", index_line);
-                strcpy((macros[index_in_macros]).arguments[index_in_arguments], line);
-                //printf("%s\n", (macros[index_in_macros]).arguments[index_in_arguments]);
-            }
-            for (size_t index_in_body = 0; index_in_body < (macros[index_in_macros]).size_of_body_of_macro; ++index_in_body)
-            {
-                if ((macros[index_in_macros]).body_of_macro[index_in_body] != '%')
-                {
-                    buffer_with_out_commands[position_in_result++] = (macros[index_in_macros]).body_of_macro[index_in_body];
-                    continue;
-                }
-                index_in_body++;
-                int argument = (macros[index_in_macros]).body_of_macro[index_in_body] - '0';
-                snprintf(buffer_with_out_commands + position_in_result, size_of_result - position_in_result, "%s", (macros[index_in_macros]).arguments[argument - 1]);
-                position_in_result += strlen((macros[index_in_macros]).arguments[argument - 1]);
-                free((macros[index_in_macros]).arguments[argument - 1]);
-                (macros[index_in_macros]).arguments[argument - 1] = NULL;
-            }
-            buffer_with_out_commands[position_in_result++] = '\n';
-            pos_in_source = pos_for_get_line - 1;
-            continue;
-        }
+        // bool it_is_macro = false;
+        // size_t index_in_macros = 0;
+        // for (index_in_macros = 0; index_in_macros < size_of_macros; ++index_in_macros)
+        // {
+        //     if (strcasecmp(line, macros[index_in_macros].name_of_macro) == 0)
+        //     {
+        //         it_is_macro = true;
+        //         break;
+        //     }
+        // }
+        // if (it_is_macro)
+        // {
+        //     pos_for_get_line++;
+        //     for (size_t index_in_arguments = 0; index_in_arguments < macros[index_in_macros].count_of_arguments; ++index_in_arguments)
+        //     {
+        //         index_line = 0;
+        //         memset(line, '\0', STATIC_LEN);
+        //         while (index_line < STATIC_LEN - 1 && pos_for_get_line < size_of_source && !isspace(buffer_with_commands_from_source[pos_for_get_line])
+        //                && buffer_with_commands_from_source[pos_for_get_line] != ',')
+        //         {
+        //             line[index_line] = buffer_with_commands_from_source[pos_for_get_line];
+        //             index_line++;
+        //             pos_for_get_line++;
+        //         }
+        //         line[index_line] = '\0';
+        //         if (buffer_with_commands_from_source[pos_for_get_line] == ',')
+        //         {
+        //             pos_for_get_line += 2;
+        //         }
+        //         if (!(macros[index_in_macros]).arguments[index_in_arguments])
+        //         {
+        //             (macros[index_in_macros]).arguments[index_in_arguments] = (char *) calloc (index_line + 1, sizeof(char));
+        //         }
+        //         if (!(macros[index_in_macros]).arguments[index_in_arguments])
+        //         {
+        //             return 1;
+        //         }
+        //         // printf("line = %s\n", line);
+        //         // //line[strlen(line) - 1] = '\0';
+        //         // printf("index_line = %lu\n", index_line);
+        //         strcpy((macros[index_in_macros]).arguments[index_in_arguments], line);
+        //         //printf("%s\n", (macros[index_in_macros]).arguments[index_in_arguments]);
+        //     }
+        //     for (size_t index_in_body = 0; index_in_body < (macros[index_in_macros]).size_of_body_of_macro; ++index_in_body)
+        //     {
+        //         if ((macros[index_in_macros]).body_of_macro[index_in_body] != '%')
+        //         {
+        //             buffer_with_out_commands[position_in_result++] = (macros[index_in_macros]).body_of_macro[index_in_body];
+        //             continue;
+        //         }
+        //         index_in_body++;
+        //         int argument = (macros[index_in_macros]).body_of_macro[index_in_body] - '0';
+        //         snprintf(buffer_with_out_commands + position_in_result, size_of_result - position_in_result, "%s", (macros[index_in_macros]).arguments[argument - 1]);
+        //         position_in_result += strlen((macros[index_in_macros]).arguments[argument - 1]);
+        //         free((macros[index_in_macros]).arguments[argument - 1]);
+        //         (macros[index_in_macros]).arguments[argument - 1] = NULL;
+        //     }
+        //     buffer_with_out_commands[position_in_result++] = '\n';
+        //     pos_in_source = pos_for_get_line - 1;
+        //     continue;
+        // }
         if (strcasecmp(line, "%include") == 0)
         {
             while (pos_for_get_line < size_of_source && buffer_with_commands_from_source[pos_for_get_line] != '\n')
@@ -306,6 +320,110 @@ static int parse_source_and_add_files(char *buffer_with_commands_from_source, si
     return 0;
 }
 
+static int substitute_macros_to_result(char *buffer_with_out_commands, size_t size_of_result, char *tmp_buffer_with_out_commands,
+                                       struct Macro_type *macros, size_t size_of_macros)
+{
+    if (buffer_with_out_commands == NULL || macros == NULL || tmp_buffer_with_out_commands == NULL)
+    {
+        return 1;
+    }
+    size_t pos_in_result = 0;
+    for (size_t pos_in_tmp = 0; pos_in_tmp < size_of_result && tmp_buffer_with_out_commands[pos_in_tmp] != '\0'; ++pos_in_tmp)
+    {
+        char line[STATIC_LEN] = "";
+        memset(line, 0, STATIC_LEN);
+        size_t index_line = 0;
+        size_t pos_for_get_line = pos_in_tmp;
+        while (index_line < STATIC_LEN - 1 && pos_for_get_line < size_of_result && tmp_buffer_with_out_commands[pos_for_get_line] != ' ' && tmp_buffer_with_out_commands[pos_for_get_line] != '\0')
+        {
+            //printf("buffer[%lu] = %d\n", pos_for_get_line, buffer_with_out_commands[pos_for_get_line]);
+            line[index_line] = tmp_buffer_with_out_commands[pos_for_get_line];
+            index_line++;
+            pos_for_get_line++;
+        }
+        line[index_line] = '\0';
+        bool it_is_macro = false;
+        size_t index_in_macros = 0;
+        for (index_in_macros = 0; index_in_macros < size_of_macros; ++index_in_macros)
+        {
+            if (strcasecmp(line, macros[index_in_macros].name_of_macro) == 0)
+            {
+                it_is_macro = true;
+                break;
+            }
+        }
+        if (it_is_macro)
+        {
+            pos_for_get_line++;
+            for (size_t index_in_arguments = 0; index_in_arguments < macros[index_in_macros].count_of_arguments; ++index_in_arguments)
+            {
+                index_line = 0;
+                memset(line, '\0', STATIC_LEN);
+                while (index_line < STATIC_LEN - 1 && pos_for_get_line < size_of_result && !isspace(tmp_buffer_with_out_commands[pos_for_get_line])
+                    && tmp_buffer_with_out_commands[pos_for_get_line] != ',')
+                {
+                    line[index_line] = tmp_buffer_with_out_commands[pos_for_get_line];
+                    index_line++;
+                    pos_for_get_line++;
+                }
+                line[index_line] = '\0';
+                if (tmp_buffer_with_out_commands[pos_for_get_line] == ',')
+                {
+                    pos_for_get_line += 2;
+                }
+                if (!(macros[index_in_macros]).arguments[index_in_arguments])
+                {
+                    (macros[index_in_macros]).arguments[index_in_arguments] = (char *) calloc (index_line + 1, sizeof(char));
+                }
+                if (!(macros[index_in_macros]).arguments[index_in_arguments])
+                {
+                    return 1;
+                }
+                // printf("line = %s\n", line);
+                // //line[strlen(line) - 1] = '\0';
+                // printf("index_line = %lu\n", index_line);
+                strcpy((macros[index_in_macros]).arguments[index_in_arguments], line);
+                //printf("%s\n", (macros[index_in_macros]).arguments[index_in_arguments]);
+            }
+            for (size_t index_in_body = 0; index_in_body < (macros[index_in_macros]).size_of_body_of_macro; ++index_in_body)
+            {
+                if ((macros[index_in_macros]).body_of_macro[index_in_body] != '%')
+                {
+                    buffer_with_out_commands[pos_in_result++] = (macros[index_in_macros]).body_of_macro[index_in_body];
+                    continue;
+                }
+                index_in_body++;
+                int argument = (macros[index_in_macros]).body_of_macro[index_in_body] - '0';
+                snprintf(buffer_with_out_commands + pos_in_result, size_of_result - pos_in_result, "%s", (macros[index_in_macros]).arguments[argument - 1]);
+                pos_in_result += strlen((macros[index_in_macros]).arguments[argument - 1]);
+                free((macros[index_in_macros]).arguments[argument - 1]);
+                (macros[index_in_macros]).arguments[argument - 1] = NULL;
+            }
+            buffer_with_out_commands[pos_in_result++] = '\n';
+            pos_in_tmp = pos_for_get_line;
+            continue;
+        }
+        memset(line, '\0', STATIC_LEN);
+        index_line = 0;
+        pos_for_get_line = pos_in_tmp;
+        while (index_line < STATIC_LEN && pos_for_get_line < size_of_result && tmp_buffer_with_out_commands[pos_for_get_line] != '\n')
+        {
+            line[index_line++] = tmp_buffer_with_out_commands[pos_for_get_line++];
+        }
+        if (index_line < STATIC_LEN && pos_for_get_line < size_of_result)
+        {
+            line[index_line] = tmp_buffer_with_out_commands[pos_for_get_line];
+        }
+        //printf("line = %s\n", line);
+        //printf("position_in_result = %lu\n", position_in_result);
+        snprintf(buffer_with_out_commands + pos_in_result, size_of_result - pos_in_result, "%s", line);
+        //printf("%s\n", buffer_with_out_commands);
+        pos_in_result += strlen(line);
+        pos_in_tmp = pos_for_get_line;
+    }
+    return 0;
+}
+
 int preprocess_programm(FILE *source, FILE *result)
 {
     if (source == NULL || result == NULL)
@@ -375,27 +493,39 @@ int preprocess_programm(FILE *source, FILE *result)
     fclose(add);
     get_all_macros(buffer_with_commands_from_add, size_of_add, macros, STATIC_LEN_FOR_SMALL_ARRAYS);
     size_t size_of_result = (size_of_add + size_of_source) * 2;
-    char *buffer_with_out_commands = (char *) calloc (size_of_result, sizeof(char));
-    if (buffer_with_out_commands == NULL)
+    char *tmp_buffer_with_out_commands = (char *) calloc (size_of_result, sizeof(char));
+    if (tmp_buffer_with_out_commands == NULL)
     {
         return 1;
     }
     int code = parse_source_and_add_files(buffer_with_commands_from_source, size_of_source,
                                           buffer_with_commands_from_add,    size_of_add,
-                                          buffer_with_out_commands,         size_of_result,
-                                          macros, STATIC_LEN_FOR_SMALL_ARRAYS);
+                                          tmp_buffer_with_out_commands,         size_of_result);
+    if (code)
+    {
+        return code;
+    }
+    char *general_buffer_with_out_commands = (char *) calloc (size_of_result, sizeof(char));
+    if (general_buffer_with_out_commands == NULL)
+    {
+        return 1;
+    }
+
+
+    code = substitute_macros_to_result(general_buffer_with_out_commands, size_of_result, tmp_buffer_with_out_commands, macros, STATIC_LEN_FOR_SMALL_ARRAYS);
     if (code)
     {
         return code;
     }
 
 
-    size_t result_of_writing = fwrite(buffer_with_out_commands, sizeof(char), strlen(buffer_with_out_commands), result);
+    size_t result_of_writing = fwrite(general_buffer_with_out_commands, sizeof(char), strlen(general_buffer_with_out_commands), result);
     
 
     free(buffer_with_commands_from_source);
     free(buffer_with_commands_from_add);
-    free(buffer_with_out_commands);
+    free(tmp_buffer_with_out_commands);
+    free(general_buffer_with_out_commands);
     for (size_t id = 0; id < STATIC_LEN_FOR_SMALL_ARRAYS; ++id)
     {
         if (macros[id].arguments)

@@ -1,29 +1,30 @@
-;2 _start func
-%include "include/test_file_for_add.inc"
+;8 _start input convert_to_number print_enter buffer_write_char flush_buffer print_number print
+%include "include/asm_functions.inc"
+
 section .data
-    msg db 20 dup(0)
-    len equ $ - msg
-    msg1 db 'Hello World!', 10
-    len1 equ $ - msg1
-    buffer_index dq 10
-
+	buffer_for_text db 256 dup(0)
+	len_of_buffer equ $ - buffer_for_text
+	buffer_index dq 0
+	buffer_for_input db 256 dup(0)
+	buffer_size equ $ - buffer_for_input
 section .text
-    global _start
-
-func:
-    print_str msg1, len1
-    jmp .label
-    mov rdx, 10
-.label:
-    print_str msg1, len1
-    ret
+	global _start
 
 _start:
-    call func
-    mov rcx, [rbp + rdx * 8 + 8]
-    mov byte [rel msg], 0
-    mov rax, [rel buffer_index]
-    mov qword [rel buffer_index], 0
-    mov rax, 60
-    xor rdi, rdi
-    syscall
+	push rbp
+	mov rbp, rsp
+	sub rsp, 128
+	call input
+	push rax
+	pop rax
+	mov DWORD [rbp - 4], eax
+	movsxd rax, DWORD [rbp - 4]
+	push rax
+	push 0
+	mov rdi, 2
+	call print
+	pop rbp
+	mov rax, 60
+	xor rdi, rdi
+	syscall
+

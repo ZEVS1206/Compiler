@@ -48,9 +48,9 @@ struct Binary_file
     FILE *file_pointer;
     size_t count_of_functions;
     struct Function_type *all_functions;
-    char section_header_str_table[256];//Table of names of sections
+    char section_header_str_table[64];//Table of names of sections
     size_t len_section_header_str_table;
-    char symbol_string_table[256];//Table of names of symbols
+    char symbol_string_table[2048];//Table of names of symbols
     size_t len_symbol_string_table;
     Elf64_Ehdr ELF_Header;
     uint8_t *buffer_of_text_commands;
@@ -105,7 +105,14 @@ enum Opcode
     OP_CALL_FUNC                 = 34,
     OP_RET                       = 35,
     OP_LOOP_LABEL                = 36,
-    OP_MOVSD_REG_REG             = 37
+    OP_MOVSD_REG_REG             = 37,
+    OP_MOVSD_REG_IMM             = 38,
+    OP_MOVSD_MEMORY_REG          = 39,
+    OP_MOVSD_MEMORY_IMM          = 40,
+    OP_MOVSD_REG_ADDRESS_LABEL   = 41,
+    OP_MOVSD_REG_ADDRESS_REG     = 42,
+    OP_MOVSXD_REG_ADDRESS_REG    = 43,
+    OP_PUSH_IMM                  = 44
 };
 
 enum Jmp_cmds
@@ -297,7 +304,6 @@ struct Imm_data
 
 struct Instruction_operand
 {
-    //Type_of_imm imm_type;
     Type_of_operand type;
     size_t len_of_string_operand;
     union//?
@@ -363,7 +369,8 @@ enum Additional_info_type
 {
     UNKNOWN_ADDITIONAL_INFO_TYPE = 0,
     BYTE                         = 1,
-    QWORD                        = 2
+    QWORD                        = 2,
+    DWORD                        = 3
 };
 
 struct Expression_type
