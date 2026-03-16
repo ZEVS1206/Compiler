@@ -20,9 +20,13 @@ all: assembler
 assembler:
 	mkdir -p $(build_dir)
 	make -C $(FOLDER_ASSEMBLER) dir=$(dir_asm)
+asm_run: assembler
+	$(real_start_asm)
 
 nasm:
 	make -C $(FOLDER_ASSEMBLER) dir_nasm=$(dir_nasm) nasm
+nasm_run: nasm
+	$(start_nasm)
 
 run: assembler
 	$(real_start_asm)
