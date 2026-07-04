@@ -173,6 +173,7 @@ static Errors_of_ASM constructor(struct Special_elements_for_processing *element
     elements->is_parametres = false;
     elements->is_round_function = false;
     elements->is_caller_with_parametres = false;
+    elements->is_current_function_has_caller = false;
     return NO_ASM_ERRORS;
 }
 
@@ -397,6 +398,7 @@ static void choose_way_of_operating(struct Node *root, FILE *file_pointer, struc
         {
             case OPERATOR_ASSIGNMENT:
             {
+                //printf("assignment\n");
                 process_operator_assignment(root, file_pointer, elements);// all_variables);
                 return;
             }
@@ -437,7 +439,7 @@ static void choose_way_of_operating(struct Node *root, FILE *file_pointer, struc
     {
         process_caller_of_function(root, file_pointer, elements);
     }
-    else 
+    else
     {
         return;
     }
@@ -470,6 +472,7 @@ static void process_operator_while(struct Node *root, FILE *file_pointer, struct
     {
         Stack_Elem_t element = 0;
         error = stack_pop(&(elements->stack_while), &element);
+        printf("after stack_pop in process_operator_while\n");
         if (error != NO_ERRORS)
         {
             fprintf(stderr, "error of stack = %d\n", error);
@@ -530,6 +533,7 @@ static void process_operator_if(struct Node *root, FILE *file_pointer, struct Sp
     {
         Stack_Elem_t element = 0;
         error = stack_pop(&(elements->stack_if), &element);
+        printf("after stack_pop in process_operator_if\n");
         if (error != NO_ERRORS)
         {
             fprintf(stderr, "error of stack = %d\n", error);
@@ -762,6 +766,12 @@ static void process_built_in_function(struct Node *root, FILE *file_pointer, str
     elements->is_round_function = false;
     Stack_Elem_t element = 0;
     Errors error = stack_element(&(elements->stack_for_last_commands), &element);
+    //printf("element in process_built_in_function = %lf\n", element);
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
     if (strcasecmp((root->value).function_name, "print") == 0)
     {
         elements->is_caller_with_parametres = false;
@@ -769,6 +779,7 @@ static void process_built_in_function(struct Node *root, FILE *file_pointer, str
         fprintf(file_pointer, "\tcall print\n");
         return;
     }
+    error = stack_pop(&(elements->stack_for_last_commands), &element);
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);
@@ -851,8 +862,6 @@ static void process_definition_of_function(struct Node *root, FILE *file_pointer
     elements->is_assignment = false;
     struct Node *function = root->left;
     get_local_memory(&(function->value), elements);
-    fprintf(file_pointer, "%s:\n", (function->value).function_name);
-    fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
     Stack_Elem_t element = 0;
     Errors error = stack_element(&(elements->current_function), &element);
     size_t id = (size_t)element;
@@ -861,6 +870,8 @@ static void process_definition_of_function(struct Node *root, FILE *file_pointer
         fprintf(stderr, "error of stack = %d\n", error);
         abort();
     }
+    // if (((elements->all_functions)[id]).has_caller)
+    // {
     struct Variable *function_parametres = (struct Variable *) calloc (SIZE_OF_ALL_VARIABLES, sizeof(struct Variable));
     if (function_parametres == NULL)
     {
@@ -885,54 +896,61 @@ static void process_definition_of_function(struct Node *root, FILE *file_pointer
     (elements->all_functions)[id].count_of_parametres = counter_of_parametres;
     find_caller_of_function(root->node_after_operator, (function->value).function_name, elements, function_parametres);
     free(function_parametres);
-    // process_expression_after_assignment(function->left, file_pointer, elements, &counter_of_parametres, FUNCTION);
-    // process_expression_after_assignment(function->right, file_pointer, elements, &counter_of_parametres, FUNCTION);
-    elements->is_parametres = false;
-    (elements->all_functions)[id].is_parametres_processed = true;
-    //(elements->all_functions)[id].last_free_address -= 4 * counter_of_parametres;
-    if (counter_of_parametres != 0)
+    if (elements->is_current_function_has_caller)
     {
-        int size = 0;
-        if (8 * (counter_of_parametres * 4) > TYPICAL_SIZE_OF_LOCAL_MEMORY)
+        elements->is_current_function_has_caller = false;
+        fprintf(file_pointer, "%s:\n", (function->value).function_name);
+        fprintf(file_pointer, "\tpush rbp\n\tmov rbp, rsp\n");
+        // process_expression_after_assignment(function->left, file_pointer, elements, &counter_of_parametres, FUNCTION);
+        // process_expression_after_assignment(function->right, file_pointer, elements, &counter_of_parametres, FUNCTION);
+        elements->is_parametres = false;
+        (elements->all_functions)[id].is_parametres_processed = true;
+        //(elements->all_functions)[id].last_free_address -= 4 * counter_of_parametres;
+        if (counter_of_parametres != 0)
         {
-            size = 8 * (counter_of_parametres * 4);
+            int size = 0;
+            if (8 * (counter_of_parametres * 4) > TYPICAL_SIZE_OF_LOCAL_MEMORY)
+            {
+                size = 8 * (counter_of_parametres * 4);
+            }
+            else
+            {
+                size = TYPICAL_SIZE_OF_LOCAL_MEMORY;
+            }
+            fprintf(file_pointer, "\tsub rsp, %d\n", size);
         }
         else
         {
-            size = TYPICAL_SIZE_OF_LOCAL_MEMORY;
+            fprintf(file_pointer, "\tsub rsp, %d\n", TYPICAL_SIZE_OF_LOCAL_MEMORY);
         }
-        fprintf(file_pointer, "\tsub rsp, %d\n", size);
-    }
-    else
-    {
-        fprintf(file_pointer, "\tsub rsp, %d\n", TYPICAL_SIZE_OF_LOCAL_MEMORY);
-    }
-    if (counter_of_parametres != 0)
-    {
-        int parametre = 8 * (counter_of_parametres * 2 + 1);
-        for (size_t index = 0; index < counter_of_parametres; index++, parametre -= 16)
+        if (counter_of_parametres != 0)
         {
-            Type_of_number type_of_parametre = (((elements->all_functions)[id]).all_local_variables)[index].type_of_variable;
-            if (type_of_parametre == INT)
+            int parametre = 8 * (counter_of_parametres * 2 + 1);
+            for (size_t index = 0; index < counter_of_parametres; index++, parametre -= 16)
             {
-                fprintf(file_pointer, "\tmov rax, [rbp + %d]\n", parametre);
-                fprintf(file_pointer, "\tmov DWORD [rbp %d], eax\n", (((elements->all_functions)[id]).all_local_variables)[index].variable_address);
-            }
-            else if (type_of_parametre == DOUBLE)
-            {
-                fprintf(file_pointer, "\tmovsd xmm0, [rbp + %d]\n", parametre);
-                fprintf(file_pointer, "\tmovsd [rbp %d], xmm0\n", (((elements->all_functions)[id]).all_local_variables)[index].variable_address);
+                Type_of_number type_of_parametre = (((elements->all_functions)[id]).all_local_variables)[index].type_of_variable;
+                if (type_of_parametre == INT)
+                {
+                    fprintf(file_pointer, "\tmov rax, [rbp + %d]\n", parametre);
+                    fprintf(file_pointer, "\tmov DWORD [rbp %d], eax\n", (((elements->all_functions)[id]).all_local_variables)[index].variable_address);
+                }
+                else if (type_of_parametre == DOUBLE)
+                {
+                    fprintf(file_pointer, "\tmovsd xmm0, [rbp + %d]\n", parametre);
+                    fprintf(file_pointer, "\tmovsd [rbp %d], xmm0\n", (((elements->all_functions)[id]).all_local_variables)[index].variable_address);
+                }
             }
         }
+        bypass_of_tree(root->right, file_pointer, elements);
+        error = stack_pop(&(elements->current_function), &element);
+        //printf("after stack_pop in process_definition_of_function\n");
+        if (error != NO_ERRORS)
+        {
+            fprintf(stderr, "error of stack = %d\n", error);
+            abort();
+        }
     }
-    bypass_of_tree(root->right, file_pointer, elements);
     elements->is_body_of_functions = false;
-    error = stack_pop(&(elements->current_function), &element);
-    if (error != NO_ERRORS)
-    {
-        fprintf(stderr, "error of stack = %d\n", error);
-        abort();
-    }
     if (root->is_last_function)
     {
         char start_str[50] = "_start:";
@@ -961,12 +979,15 @@ static void find_caller_of_function(struct Node *root, char *function_name, stru
             }
         }
         strncpy((elements->processed_variables)[index].variable_name, (((root->left)->value).variable).variable_name, strlen((((root->left)->value).variable).variable_name));
+        //printf("(elements->processed_variables)[%lu].variable_name = %s\n", index, (elements->processed_variables)[index].variable_name);
         Type_of_number type = INT;
         get_result_type(root->right, &type);
+        //printf("(elements->processed_variables)[%lu].type_of_variable = %d\n", index, type);
         (elements->processed_variables)[index].type_of_variable = type;
     }
     if ((root->value).type == CALLER_OF_FUNCTION && strcasecmp(((root->value).function_name), function_name) == 0)
     {
+        elements->is_current_function_has_caller = true;
         Stack_Elem_t element = 0;
         Errors error = stack_element(&(elements->current_function), &element);
         size_t id = (size_t)element;
@@ -1178,6 +1199,8 @@ static void save_global_variable(struct Node *root, FILE *file_pointer, struct S
         fprintf(stderr, "error of stack = %d\n", error);
         abort();
     }
+    // printf("((root->left)->value).variable.variable_name = %s\n", ((root->left)->value).variable.variable_name);
+    // printf("element = %lf\n", element);
     int ram_address = -1;
     bool is_exists = false;
     int empty_index = 0;
@@ -1198,7 +1221,7 @@ static void save_global_variable(struct Node *root, FILE *file_pointer, struct S
             break;
         }
         last_address = ((elements->all_variables)[index]).variable_address;
-        
+
     }
     if (element == DOUBLE)
     {
@@ -1206,7 +1229,7 @@ static void save_global_variable(struct Node *root, FILE *file_pointer, struct S
     }
     if (!is_exists)
     {
-        if (elements->is_any_double_number)
+        if (elements->is_any_double_number && element == DOUBLE)
         {
             last_address -= 4;
             ((elements->all_variables)[empty_index]).type_of_variable = DOUBLE;
@@ -1219,7 +1242,7 @@ static void save_global_variable(struct Node *root, FILE *file_pointer, struct S
         strncpy(((elements->all_variables)[empty_index]).variable_name, ((root->left)->value).variable.variable_name, strlen(((root->left)->value).variable.variable_name));
         ram_address = last_address - 4;
     }
-    if (!elements->is_any_double_number)
+    if (element == INT)
     {
         fprintf(file_pointer, "\tpop rax\n");
         fprintf(file_pointer, "\tmov DWORD [rbp %d], eax\n", ram_address);
@@ -1249,6 +1272,11 @@ static void save_local_variable(struct Node *root, FILE *file_pointer, struct Sp
     Stack_Elem_t element = 0;
     Errors error = stack_element(&(elements->current_function), &element);
     size_t id = (size_t)element;
+    if (error != NO_ERRORS)
+    {
+        fprintf(stderr, "error of stack = %d\n", error);
+        abort();
+    }
     element = 0;
     error = stack_element(&(elements->stack_for_last_commands), &element);
     if (error != NO_ERRORS)
@@ -1282,7 +1310,7 @@ static void save_local_variable(struct Node *root, FILE *file_pointer, struct Sp
     if (!is_exists)
     {
         strncpy((((elements->all_functions)[id]).all_local_variables)[index].variable_name, ((root->left)->value).variable.variable_name, strlen(((root->left)->value).variable.variable_name));
-        if (elements->is_any_double_number)
+        if (elements->is_any_double_number && element == DOUBLE)
         {
             ((elements->all_functions)[id]).last_free_address -= 4;
             (((elements->all_functions)[id]).all_local_variables)[index].type_of_variable = DOUBLE;
@@ -1295,7 +1323,7 @@ static void save_local_variable(struct Node *root, FILE *file_pointer, struct Sp
         (((elements->all_functions)[id]).all_local_variables)[index].variable_address = ((elements->all_functions)[id]).last_free_address;
         ram_address = (((elements->all_functions)[id]).all_local_variables)[index].variable_address;
     }
-    if (!elements->is_any_double_number)
+    if (element == INT)
     {
         fprintf(file_pointer, "\tpop rax\n");
         fprintf(file_pointer, "\tmov DWORD [rbp %d], eax\n", ram_address);
@@ -1331,10 +1359,12 @@ static void process_operator_assignment(struct Node *root, FILE *file_pointer, s
     process_expression_after_assignment(root->right, file_pointer, elements, &counter_of_parametres, OPERATOR);
     if (!elements->is_body_of_functions)
     {
+        //printf("global variable\n");
         save_global_variable(root, file_pointer, elements);
     }
     else
     {
+        //printf("local variable\n");
         save_local_variable(root, file_pointer, elements);
     }
     (elements->all_registers)[0].is_free = true;
@@ -1374,7 +1404,7 @@ static void process_expression_after_assignment(struct Node *root, FILE *file_po
             elements->is_assignment = true;
         }
     }
-        
+
 
     process_expression_after_assignment((root->left), file_pointer, elements, counter_of_parametres, type);
     process_expression_after_assignment((root->right), file_pointer, elements, counter_of_parametres, type);
@@ -1408,11 +1438,14 @@ static void process_expression_after_assignment(struct Node *root, FILE *file_po
             Stack_Elem_t element1 = 0;
             Stack_Elem_t element2 = 0;
             Errors error = stack_pop(&(elements->stack_for_last_commands), &element1);
+            // printf("after stack_pop in case operation for element1 in process_expression_after_assignment\n");
+            // printf("element1 = %lf\n", element1);
             if (error != NO_ERRORS)
             {
                 fprintf(stderr, "error of stack = %d\n", error);
             }
             error = stack_pop(&(elements->stack_for_last_commands), &element2);
+            // printf("after stack_pop in case operation for element2 in process_expression_after_assignment\n");
             if (error != NO_ERRORS)
             {
                 fprintf(stderr, "error of stack = %d\n", error);
@@ -1472,7 +1505,7 @@ static void process_expression_after_assignment(struct Node *root, FILE *file_po
             fprintf(stderr, "ERROR OF UNKNOWN TYPE\n");
             abort();
         }
-        
+
     }
     return;
 }
@@ -1490,7 +1523,7 @@ static void get_variable(FILE *file_pointer, struct Special_elements_for_process
         abort();
     }
     Errors error = NO_ERRORS;
-    
+
     char str[10] = "";
     char str_for_stack[10] = "";
     if (type_of_variable == INT)
@@ -1611,6 +1644,7 @@ static void process_global_variable(struct Value *value, FILE *file_pointer, str
     bool is_exists = false;
     int address = -1;
     size_t index = 0;
+    //printf("value->variable.variable_name = %s\n", value->variable.variable_name);
     for (index = 0; index < SIZE_OF_ALL_VARIABLES; index++)
     {
         //printf("name of variable = %s\n", ((*all_variables)[index]).name);
@@ -1627,6 +1661,7 @@ static void process_global_variable(struct Value *value, FILE *file_pointer, str
         fprintf(stderr, "ERROR OF USING UNKNOWN VARIABLE\n");
         abort();
     }
+    //printf("((elements->all_variables)[index]).type_of_variable = %d\n", ((elements->all_variables)[index]).type_of_variable);
     get_variable(file_pointer, elements, address, ((elements->all_variables)[index]).type_of_variable);
     return;
 }
@@ -1641,12 +1676,14 @@ static void process_operation_for_double(struct Value *value, FILE *file_pointer
     Stack_Elem_t first_elem = 0;
     Stack_Elem_t second_elem = 0;
     Errors error = stack_pop(&(elements->stack_for_last_commands), &first_elem);
+    //printf("after stack_pop in process_operation_for_double for the first_elem\n");
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);
         abort();
     }
     error = stack_pop(&(elements->stack_for_last_commands), &second_elem);
+    //printf("after stack_pop in process_operation_for_double for the second_elem\n");
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);
@@ -1722,12 +1759,14 @@ static void process_operation_for_int(struct Value *value, FILE *file_pointer, s
     Stack_Elem_t first_elem = 0;
     Stack_Elem_t second_elem = 0;
     Errors error = stack_pop(&(elements->stack_for_last_commands), &first_elem);
+    //printf("after stack_pop in process_operation_for_int for the first_elem\n");
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);
         abort();
     }
     error = stack_pop(&(elements->stack_for_last_commands), &second_elem);
+    //printf("after stack_pop in process_operation_for_int for the second_elem\n");
     if (error != NO_ERRORS)
     {
         fprintf(stderr, "error of stack = %d\n", error);

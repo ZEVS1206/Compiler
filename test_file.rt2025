@@ -4,6 +4,6 @@ def func(x)
     return x;
 }
 x = double(input());
-res = func(x);
-print(res);
+ans = func(x);
+print(x, ans);
 $

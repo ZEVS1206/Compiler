@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     const char *file_name = argv[1];
     Errors_of_tree error = tree_reader(&tree, file_name); //"../Reader/source/input.txt");
     if (error != NO_ERRORS_TREE)
-    {  
+    {
         fprintf(stderr, "error of tree = %d\n", error);
         abort();
     }

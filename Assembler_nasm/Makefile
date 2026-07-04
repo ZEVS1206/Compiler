@@ -24,8 +24,11 @@ NASM_SOURCE_DIR = source/nasm
 NASM_OBJECTS = $(BUILD_DIR)/nasm_asm.o
 NASM_EXEC_NAME = nasm_program.exe
 
+file ?= ../Reader/source/input.txt
+
 dir ?= $(BUILD_DIR)/$(EXEC_NAME)
 dir_nasm ?= $(BUILD_DIR)/$(NASM_EXEC_NAME)
+
 
 
 # wildcart patsubst
@@ -54,7 +57,7 @@ clean:
 	rm -rf $(NASM_SOURCE_DIR)
 
 run:
-	$(dir)
+	$(dir) $(file)
 
 # NASM compilation and run rules
 nasm:

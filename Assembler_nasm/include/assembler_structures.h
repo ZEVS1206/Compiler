@@ -106,6 +106,7 @@ struct Special_elements_for_processing
     bool is_round_function;
     char function_from_name[50];
     bool is_caller_with_parametres;
+    bool is_current_function_has_caller;
 };
 
 Errors_of_ASM transform_programm_to_assembler(struct Tree *tree, struct Labels **all_labels);

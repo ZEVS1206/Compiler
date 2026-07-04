@@ -1,0 +1,39 @@
+%include "include/asm_built_in_functions.inc"
+
+section .data
+	buffer_for_text db 256 dup(0)
+	len_of_buffer equ $ - buffer_for_text
+	buffer_index dq 0
+	buffer_for_input db 256 dup(0)
+	buffer_size equ $ - buffer_for_input
+	ten dq 10.0
+	one dq 1.0
+	buffer_for_int_part db 256 dup(0)
+	buffer_for_frac_part db 256 dup(0)
+section .text
+	global _start
+	extern pow
+_start:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 128
+	call input
+	cmp r12, 0
+	jne not_transform0x7c48a2be0220
+	int_to_double 0, rax
+not_transform0x7c48a2be0220:
+	sub rsp, 8
+	movsd [rsp], xmm0
+	movsd xmm0, [rsp]
+	add rsp, 8
+	movsd [rbp -8], xmm0
+	movsd xmm0, [rbp -8]
+	sub rsp, 8
+	movsd [rsp], xmm0
+	push 1
+	mov rdi, 2
+	call print
+	pop rbp
+	mov rax, 60
+	xor rdi, rdi
+	syscall
