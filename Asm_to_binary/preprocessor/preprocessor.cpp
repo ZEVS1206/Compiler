@@ -108,7 +108,7 @@ static void get_all_macros(char *buffer, size_t size_of_buffer, struct Macro_typ
     //     printf("%s\n", macros[id].body_of_macro);
     //     //printf("count_of_arguments = %lu\n", macros[id].count_of_arguments);
     // }
-    //printf("size_of_macros = %lu\n", size_of_macros);
+    // printf("size_of_macros = %lu\n", size_of_macros);
     return;
 }
 
@@ -194,6 +194,11 @@ static int parse_source_and_add_files(char *buffer_with_commands_from_source, si
                         id_add_buffer++;
                     }
                     //id_add_buffer += 2;
+                    continue;
+                }
+                if (isspace(buffer_with_commands_from_add[id_add_buffer]))
+                {
+                    buffer_with_out_commands[position_in_result++] = buffer_with_commands_from_add[id_add_buffer++];
                     continue;
                 }
                 char line[STATIC_LEN] = "";
@@ -527,18 +532,18 @@ int preprocess_programm(FILE *source, FILE *result)
     return 0;
 }
 
-int main()
-{
-    const char *source_file_name = "source.txt";
-    const char *source_out_file_name = "result.txt";
-    FILE *source = fopen(source_file_name, "rb");
-    FILE *result = fopen(source_out_file_name, "w");
-    int res = preprocess_programm(source, result);
-    if (res != 0)
-    {
-        fprintf(stderr, "Error of preprocessing\n");
-        return 1;
-    }
-    fclose(result);
-    return 0;
-}
+// int main()
+// {
+//     const char *source_file_name = "source.txt";
+//     const char *source_out_file_name = "result.txt";
+//     FILE *source = fopen(source_file_name, "rb");
+//     FILE *result = fopen(source_out_file_name, "w");
+//     int res = preprocess_programm(source, result);
+//     if (res != 0)
+//     {
+//         fprintf(stderr, "Error of preprocessing\n");
+//         return 1;
+//     }
+//     fclose(result);
+//     return 0;
+// }
