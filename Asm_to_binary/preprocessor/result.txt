@@ -1,9 +1,14 @@
 ;1 _start
+
 section .data
+
     msg: db 'HELLO, World', 10
+
     len equ $ - msg
 
+
 section .text
+
     global _start
 
 
@@ -33,18 +38,25 @@ input:
     je   .int_number
     jmp  .double_number
 
+
 _start:
-        mov rax, 1
-    mov rdi, 1
-    mov rsi, msg
-    mov rdx, len
-    syscall
+
         mov rax, 1
     mov rdi, 1
     mov rsi, msg
     mov rdx, len
     syscall
 
-    mov rax, 60
-    xor rdi, rdi
+        mov rax, 1
+    mov rdi, 1
+    mov rsi, msg
+    mov rdx, len
     syscall
+
+
+    mov rax, 60
+
+    xor rdi, rdi
+
+    syscall
+
